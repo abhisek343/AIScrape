@@ -1,0 +1,53 @@
+'use client';
+
+import { PlayIcon } from 'lucide-react';
+import { useReactFlow } from '@xyflow/react';
+import { useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
+
+import { Button } from '@/components/ui/button';
+
+import { runWorkflow } from '@/actions/workflows/run-workflow';
+import useExecutionPlan from '@/hooks/use-execution-plan';
+
+export default function ExecuteBtn({ workflowId }: { workflowId: string }) {
+  const generate = useExecutionPlan();
+  const { toObject } = useReactFlow();
+
+  const mutation = useMutation({
+    mutationFn: runWorkflow,
+    onSuccess: () => {
+      toast.success('Execution started', { id: 'flow-execution' });
+    },
+    onError: () => {
+      toast.error('Something went wrong!', { id: 'flow-execution' });
+    },
+  });
+
+  return (
+    <Button
+      variant="outline"
+      className="flex items-center gap-2"
+      disabled={mutation.isPending}
+      onClick={() => {
+        // Get the current flow state FIRST, before validation might trigger re-renders affecting it.
+        const currentFlowStateForExecution = toObject();
+
+        const plan = generate(); // This will run client-side validation and display errors if any
+        if (!plan) {
+          // Validation failed, errors are now set by generate(), so just return.
+          return;
+        }
+
+        // If validation passed, proceed with mutation using the initially captured state.
+        mutation.mutate({
+          workflowId: workflowId,
+          currentFlowDefinition: JSON.stringify(currentFlowStateForExecution),
+        });
+      }}
+    >
+      <PlayIcon size={16} className="stroke-orange-400" />
+      Execute
+    </Button>
+  );
+}
