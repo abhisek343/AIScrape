@@ -21,10 +21,10 @@ export default function PrivacyPolicy() {
           </p>
           <h2 className="text-2xl font-bold mt-8 mb-4">1. Information We Collect</h2>
           <p>
-            We only ask for personal information when we truly need it to provide a service to you. We collect it by fair and lawful means, with your knowledge and consent. We also let you know why we're collecting it and how it will be used.
+            We only ask for personal information when we truly need it to provide a service to you. We collect it by fair and lawful means, with your knowledge and consent. We also let you know why we&#39;re collecting it and how it will be used.
           </p>
           <p>
-            The information we collect may include your name, email address, payment information, and how you use our services. We use this information to create and manage your account, provide customer support, and improve our services.
+            {`The information we collect may include your name, email address, payment information, and how you use our services. We use this information to create and manage your account, provide customer support, and improve our services.`}
           </p>
           <h2 className="text-2xl font-bold mt-8 mb-4">2. How We Use Your Information</h2>
           <p>

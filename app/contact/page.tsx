@@ -20,7 +20,7 @@ export default function Contact() {
         <h1 className="text-4xl font-extrabold tracking-tight mb-6">Contact Us</h1>
         <div className="max-w-xl mx-auto">
           <p className="text-muted-foreground mb-8">
-            Have a question or want to learn more about AIScrape? Fill out the form below, and we'll get back to you as soon as possible.
+            {`Have a question or want to learn more about AIScrape? Fill out the form below, and we'll get back to you as soon as possible.`}
           </p>
           <form className="space-y-4">
             <Input type="text" placeholder="Your Name" />

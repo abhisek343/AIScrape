@@ -7,7 +7,7 @@ import AppProviders from '@/components/providers/app-providers';
 
 import '@/app/globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
 export const metadata: Metadata = {
   // metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL!),
