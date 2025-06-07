@@ -1,9 +1,9 @@
 # AIScrape 🚀
 
-![GitHub stars](https://img.shields.io/github/stars/abhisek343/HTS?style=social)
-![GitHub forks](https://img.shields.io/github/forks/abhisek343/HTS?style=social)
-![GitHub issues](https://img.shields.io/github/issues/abhisek343/HTS)
-![License](https://img.shields.io/github/license/abhisek343/HTS)
+![GitHub stars](https://img.shields.io/github/stars/abhisek343/AIScrape?style=social)
+![GitHub forks](https://img.shields.io/github/forks/abhisek343/AIScrape?style=social)
+![GitHub issues](https://img.shields.io/github/issues/abhisek343/AIScrape)
+![License](https://img.shields.io/github/license/abhisek343/AIScrape)
 
 AIScrape is a powerful, intuitive platform that simplifies web scraping by enabling you to build, manage, and scale complex data extraction workflows with ease.
 
@@ -36,8 +36,8 @@ AIScrape is a powerful, intuitive platform that simplifies web scraping by enabl
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/abhisek343/HTS.git
-    cd HTS
+    git clone https://github.com/abhisek343/AIScrape.git
+    cd AIScrape
     ```
 
 2.  **Install dependencies:**
@@ -68,45 +68,3 @@ Contributions are welcome! Please feel free to submit a pull request or open an 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-# Commit 2
-
-# Commit 3
-
-# Commit 4
-
-# Commit 5
-
-# Commit 6
-
-# Commit 7
-
-# Commit 8
-
-# Commit 9
-
-# Commit 10
-
-# Commit 11
-
-# Commit 12
-
-# Commit 2
-
-# Commit 3
-
-# Commit 4
-
-# Commit 5
-
-# Commit 6
-
-# Commit 7
-
-# Commit 8
-
-# Commit 9
-
-# Commit 10
-
-# Commit 11
