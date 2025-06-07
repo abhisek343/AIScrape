@@ -20,7 +20,7 @@ export default function AboutUs() {
             Welcome to AIScrape, your go-to solution for automated data extraction. Our mission is to simplify web scraping by providing a powerful, intuitive platform that enables you to build, manage, and scale complex workflows with ease.
           </p>
           <p>
-            {`At AIScrape, we believe that data is the key to unlocking insights and driving innovation. That's why we've developed a suite of tools that empower you to collect data efficiently and securely. Whether you're a developer, a data analyst, or a business owner, our platform is designed to meet your needs.`}
+            At AIScrape, we believe that data is the key to unlocking insights and driving innovation. That's why we've developed a suite of tools that empower you to collect data efficiently and securely. Whether you're a developer, a data analyst, or a business owner, our platform is designed to meet your needs.
           </p>
           <p>
             Our team is passionate about technology and dedicated to providing our users with the best possible experience. We are constantly working to improve our platform and add new features to help you stay ahead of the curve.
