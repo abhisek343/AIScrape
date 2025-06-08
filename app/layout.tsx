@@ -4,17 +4,15 @@ import { ClerkProvider } from '@clerk/nextjs';
 
 import { Toaster } from '@/components/ui/sonner';
 import AppProviders from '@/components/providers/app-providers';
+import ThemeScript from '@/components/ThemeScript';
 
 import '@/app/globals.css';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
 export const metadata: Metadata = {
-  // metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL!),
   title: 'AIScrape',
-  description:
-    'A powerful SaaS platform that combines AI-driven workflow management with automated web scraping to streamline data collection and processing.',
-  keywords: ['AIScrape', 'AI', 'workflow', 'webscrape', 'data extraction', 'automation'],
+  description: 'AI + web scraping = streamlined data workflows.',
 };
 
 export const viewport = {
@@ -24,12 +22,12 @@ export const viewport = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <ClerkProvider
-      afterSignOutUrl={'/sign-in'}
+      afterSignOutUrl="/sign-in"
       appearance={{
         elements: {
           formButtonPrimary: 'bg-primary hover:bg-primary/90 text-sm !shadow-none',
@@ -38,6 +36,7 @@ export default function RootLayout({
     >
       <html lang="en" suppressHydrationWarning>
         <body className={inter.className}>
+          <ThemeScript />
           <AppProviders>{children}</AppProviders>
           <Toaster richColors />
         </body>
