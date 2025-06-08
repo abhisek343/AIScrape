@@ -2,11 +2,6 @@
 
 AIScrape is a powerful, intuitive platform that simplifies web scraping by enabling you to build, manage, and scale complex data extraction workflows with ease.
 
-![GitHub stars](https://img.shields.io/github/stars/abhisek343/AIScrape?style=social)
-![GitHub forks](https://img.shields.io/github/forks/abhisek343/AIScrape?style=social)
-![GitHub issues](https://img.shields.io/github/issues/abhisek343/AIScrape)
-![License](https://img.shields.io/github/license/abhisek343/AIScrape)
-
 ## ✨ Features
 
 - **Visual Workflow Builder:** Drag-and-drop interface to create complex scraping logic without writing any code.
