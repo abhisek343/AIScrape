@@ -1,11 +1,11 @@
 # AIScrape 🚀
 
+AIScrape is a powerful, intuitive platform that simplifies web scraping by enabling you to build, manage, and scale complex data extraction workflows with ease.
+
 ![GitHub stars](https://img.shields.io/github/stars/abhisek343/AIScrape?style=social)
 ![GitHub forks](https://img.shields.io/github/forks/abhisek343/AIScrape?style=social)
 ![GitHub issues](https://img.shields.io/github/issues/abhisek343/AIScrape)
 ![License](https://img.shields.io/github/license/abhisek343/AIScrape)
-
-AIScrape is a powerful, intuitive platform that simplifies web scraping by enabling you to build, manage, and scale complex data extraction workflows with ease.
 
 ## ✨ Features
 
@@ -18,12 +18,12 @@ AIScrape is a powerful, intuitive platform that simplifies web scraping by enabl
 
 ## 🛠️ Tech Stack
 
-- [Next.js](https://nextjs.org/) – React Framework
-- [TypeScript](https://www.typescriptlang.org/) – Language
-- [Tailwind CSS](https://tailwindcss.com/) – CSS Framework
-- [Prisma](https://www.prisma.io/) – ORM
-- [Stripe](https://stripe.com/) – Payments
-- [React Flow](https://reactflow.dev/) - Workflow Builder
+- **Next.js** – ![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white)
+- **TypeScript** – ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+- **Tailwind CSS** – ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+- **Prisma** – ![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white)
+- **Stripe** – ![Stripe](https://img.shields.io/badge/Stripe-626CD9?style=for-the-badge&logo=stripe&logoColor=white)
+- **React Flow** – ![React Flow](https://img.shields.io/badge/React_Flow-1A192B?style=for-the-badge&logo=react&logoColor=61DAFB)
 
 ## 🚀 Getting Started
 
