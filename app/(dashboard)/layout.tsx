@@ -1,7 +1,7 @@
 // Removed 'use client', dynamic, usePathname imports as they are no longer needed here for the chatbot.
 
 import { Separator } from '@/components/ui/separator';
-import { DesktopSidebar } from '@/components/sidebar';
+import { DesktopSidebar, MobileSidebar } from '@/components/sidebar';
 import BreadcrumbHeader from '@/components/breadcrumb-header';
 import { DashboardHeaderClient } from '@/components/dashboard-header-client';
 
@@ -15,6 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <DesktopSidebar />
       <div className="flex flex-col flex-1 min-h-screen">
         <header className="flex items-center justify-between px-6 py-4 h-[50px] container">
+          <MobileSidebar />
           <BreadcrumbHeader />
           <DashboardHeaderClient />
         </header>
