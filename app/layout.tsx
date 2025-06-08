@@ -4,7 +4,6 @@ import { ClerkProvider } from '@clerk/nextjs';
 
 import { Toaster } from '@/components/ui/sonner';
 import AppProviders from '@/components/providers/app-providers';
-import ThemeScript from '@/components/ThemeScript';
 
 import '@/app/globals.css';
 
@@ -36,7 +35,6 @@ export default function RootLayout({
     >
       <html lang="en" suppressHydrationWarning>
         <body className={inter.className}>
-          <ThemeScript />
           <AppProviders>{children}</AppProviders>
           <Toaster richColors />
         </body>
