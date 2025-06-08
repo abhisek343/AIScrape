@@ -12,7 +12,12 @@ export default function AppProviders({ children }: { children: React.ReactNode }
   return (
     <QueryClientProvider client={queryClient}>
       <NextTopLoader color="#10b981" showSpinner={false} />
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      {/* Set the initial theme for new visitors to dark */}
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="dark"
+        enableSystem
+      >
         {children}
       </ThemeProvider>
       {/* <ReactQueryDevtools /> */}
