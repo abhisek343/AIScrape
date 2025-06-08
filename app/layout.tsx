@@ -15,7 +15,11 @@ export const metadata: Metadata = {
   description:
     'A powerful SaaS platform that combines AI-driven workflow management with automated web scraping to streamline data collection and processing.',
   keywords: ['AIScrape', 'AI', 'workflow', 'webscrape', 'data extraction', 'automation'],
-  viewport: 'width=device-width, initial-scale=1',
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({
