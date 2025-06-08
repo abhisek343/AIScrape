@@ -11,7 +11,8 @@ import { TaskType } from '@/types/task';
 
 export default function TaskMenu() {
   return (
-    <aside className="w-[340px] min-w-[340px] max-w-[340px] border-r-2 border-separate h-full p-2 px-4 overflow-auto">
+    // Removed fixed width classes. Width will be controlled by parent (SheetContent on mobile, wrapper div on desktop).
+    <aside className="border-r-2 border-separate h-full p-2 px-4 overflow-auto">
       <Accordion
         type="multiple"
         className="w-full"

@@ -41,10 +41,10 @@ export default function Hero() {
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.6 }}
-          className="mt-10 flex justify-center space-x-4"
+          className="mt-10 flex flex-col sm:flex-row items-center justify-center sm:space-x-4 space-y-4 sm:space-y-0"
         >
           <Link href="/sign-up">
-            <Button size="lg" className="text-lg px-8 py-6 shadow-lg">
+            <Button size="lg" className="text-lg px-8 py-6 shadow-lg w-full sm:w-auto">
               Get Started for Free <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>

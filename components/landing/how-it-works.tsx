@@ -40,33 +40,21 @@ export default function HowItWorks() {
           </p>
         </div>
         <div className="relative">
-          <div
-            className="absolute left-1/2 h-full w-px bg-border -translate-x-1/2"
-            aria-hidden="true"
-          />
+          {/* Removed the central vertical line div */}
           <div className="space-y-16">
             {steps.map((step, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, x: index % 2 === 0 ? -100 : 100 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="flex items-center"
+                initial={{ opacity: 0, y: 50 }} // Changed animation
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }} // Staggered delay
+                className="flex flex-col items-center text-center max-w-md mx-auto" // Centered layout
               >
-                <div
-                  className={`flex-1 ${
-                    index % 2 === 0 ? 'text-right pr-8' : 'text-left pl-8'
-                  }`}
-                >
-                  <h3 className="text-2xl font-bold mb-2">{step.title}</h3>
-                  <p className="text-muted-foreground">{step.description}</p>
+                <div className="flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4 border p-2"> {/* Icon styling */}
+                  {step.icon}
                 </div>
-                <div className="absolute left-1/2 -translate-x-1/2 bg-background p-2 rounded-full border">
-                  <div className="flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full">
-                    {step.icon}
-                  </div>
-                </div>
-                <div className="flex-1" />
+                <h3 className="text-2xl font-bold mb-2">{step.title}</h3>
+                <p className="text-muted-foreground">{step.description}</p>
               </motion.div>
             ))}
           </div>

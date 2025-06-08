@@ -9,7 +9,12 @@ import { Button } from '@/components/ui/button';
 
 import { updateWorkflow } from '@/actions/workflows/update-workflow';
 
-export default function SaveBtn({ workflowId }: { workflowId: string }) {
+interface SaveBtnProps {
+  workflowId: string;
+  isMobile?: boolean;
+}
+
+export default function SaveBtn({ workflowId, isMobile = false }: SaveBtnProps) {
   const { toObject } = useReactFlow();
 
   const saveMutation = useMutation({
@@ -22,19 +27,37 @@ export default function SaveBtn({ workflowId }: { workflowId: string }) {
     },
   });
 
+  const handleClick = () => {
+    const workflowDefinition = JSON.stringify(toObject());
+    toast.loading('Saving workflow...', { id: 'save-workflow' });
+    saveMutation.mutate({
+      id: workflowId,
+      definition: workflowDefinition,
+    });
+  };
+
+  if (isMobile) {
+    return (
+      <div
+        onClick={handleClick}
+        className="flex items-center gap-2 w-full px-2 py-1.5 text-sm cursor-pointer"
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && handleClick()}
+        aria-disabled={saveMutation.isPending}
+      >
+        <CheckIcon size={16} className="stroke-green-400" />
+        <span>Save</span>
+      </div>
+    );
+  }
+
   return (
     <Button
       disabled={saveMutation.isPending}
       variant="outline"
       className="flex items-center gap-2"
-      onClick={() => {
-        const workflowDefinition = JSON.stringify(toObject());
-        toast.loading('Saving workflow...', { id: 'save-workflow' });
-        saveMutation.mutate({
-          id: workflowId,
-          definition: workflowDefinition,
-        });
-      }}
+      onClick={handleClick}
     >
       <CheckIcon size={16} className="stroke-green-400" />
       Save

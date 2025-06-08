@@ -59,9 +59,9 @@ export default function Footer() {
           <p className="text-muted-foreground">
             Subscribe to our newsletter for the latest updates.
           </p>
-          <div className="flex space-x-2">
-            <Input type="email" placeholder="Enter your email" />
-            <Button>Subscribe</Button>
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+            <Input type="email" placeholder="Enter your email" className="w-full sm:w-auto flex-grow" />
+            <Button className="w-full sm:w-auto">Subscribe</Button>
           </div>
         </div>
       </div>
