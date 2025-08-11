@@ -2,71 +2,96 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Github, Twitter, Linkedin } from 'lucide-react';
+import { Github, Twitter, Linkedin, Mail } from 'lucide-react';
 import Logo from '@/components/logo';
 
 export default function Footer() {
+  const currentYear = new Date().getFullYear();
+
+  const columns = [
+    {
+      title: 'Product',
+      links: [
+        { name: 'Features', href: '#features' },
+        { name: 'How It Works', href: '#how-it-works' },
+        { name: 'Showcase', href: '#showcase' },
+        { name: 'Integrations', href: '/integrations' },
+      ],
+    },
+    {
+      title: 'Company',
+      links: [
+        { name: 'About', href: '/about' },
+        { name: 'Blog', href: '/blog' },
+        { name: 'Careers', href: '/careers' },
+        { name: 'Contact', href: '/contact' },
+      ],
+    },
+    {
+      title: 'Legal',
+      links: [
+        { name: 'Privacy', href: '/privacy-policy' },
+        { name: 'Terms', href: '/terms-of-service' },
+      ],
+    },
+  ];
+
   return (
     <motion.footer
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.5, delay: 0.2 }}
-      className="py-12 border-t border-border/40 bg-background"
+      transition={{ duration: 0.3 }}
+      className="border-t bg-background"
     >
-      <div className="container grid grid-cols-1 md:grid-cols-4 gap-8">
-        <div className="flex flex-col space-y-4">
-          <Logo iconSize={32} />
-          <p className="text-muted-foreground">
-            Automate your data extraction with AI-powered workflows.
-          </p>
-          <div className="flex space-x-4">
-            <Link href="#" className="text-muted-foreground hover:text-primary">
-              <Github />
-            </Link>
-            <Link href="#" className="text-muted-foreground hover:text-primary">
-              <Twitter />
-            </Link>
-            <Link href="#" className="text-muted-foreground hover:text-primary">
-              <Linkedin />
-            </Link>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-14">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
+          <div>
+            <Logo iconSize={28} />
+            <p className="mt-4 text-sm text-muted-foreground max-w-sm">
+              A practical platform to build, run, and monitor dependable web scraping at scale.
+            </p>
+            <div className="mt-4 flex items-center gap-3">
+              <Link href="#" className="text-muted-foreground hover:text-foreground">
+                <Twitter className="h-4 w-4" />
+              </Link>
+              <Link href="#" className="text-muted-foreground hover:text-foreground">
+                <Linkedin className="h-4 w-4" />
+              </Link>
+              <Link href="#" className="text-muted-foreground hover:text-foreground">
+                <Github className="h-4 w-4" />
+              </Link>
+              <Link href="#" className="text-muted-foreground hover:text-foreground">
+                <Mail className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+
+          {columns.map((col) => (
+            <div key={col.title}>
+              <h4 className="font-semibold">{col.title}</h4>
+              <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                {col.links.map((l) => (
+                  <li key={l.name}>
+                    <Link href={l.href} className="hover:text-foreground">
+                      {l.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-10 border-t pt-6 text-xs text-muted-foreground">
+          <div className="flex items-center justify-between flex-col gap-3 md:flex-row">
+            <p>&copy; {currentYear} AIScrape. All rights reserved.</p>
+            <div className="flex items-center gap-2">
+              <span>Newsletter</span>
+              <Input type="email" placeholder="Your email" className="h-8 w-56" />
+            </div>
           </div>
         </div>
-        <div className="flex flex-col space-y-2">
-          <h3 className="font-semibold">Company</h3>
-          <Link href="/about" className="text-muted-foreground hover:text-primary">
-            About Us
-          </Link>
-          <Link href="/blog" className="text-muted-foreground hover:text-primary">
-            Blog
-          </Link>
-          <Link href="/contact" className="text-muted-foreground hover:text-primary">
-            Contact
-          </Link>
-        </div>
-        <div className="flex flex-col space-y-2">
-          <h3 className="font-semibold">Legal</h3>
-          <Link href="/privacy-policy" className="text-muted-foreground hover:text-primary">
-            Privacy Policy
-          </Link>
-          <Link href="/terms-of-service" className="text-muted-foreground hover:text-primary">
-            Terms of Service
-          </Link>
-        </div>
-        <div className="flex flex-col space-y-2">
-          <h3 className="font-semibold">Stay Updated</h3>
-          <p className="text-muted-foreground">
-            Subscribe to our newsletter for the latest updates.
-          </p>
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-            <Input type="email" placeholder="Enter your email" className="w-full sm:w-auto flex-grow" />
-            <Button className="w-full sm:w-auto">Subscribe</Button>
-          </div>
-        </div>
-      </div>
-      <div className="container text-center text-muted-foreground mt-8">
-        <p>&copy; {new Date().getFullYear()} AIScrape. All rights reserved.</p>
       </div>
     </motion.footer>
   );
