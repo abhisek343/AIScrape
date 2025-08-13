@@ -11,7 +11,7 @@ export async function purchaseCredits(packId: PackId) {
   const { userId } = auth();
 
   if (!userId) {
-    throw new Error('Unautheticated');
+    throw new Error('Unauthenticated');
   }
 
   const selectedPack = getCreditsPack(packId);

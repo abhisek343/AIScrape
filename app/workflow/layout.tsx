@@ -27,11 +27,11 @@ export default function WorkflowLayout({ children }: { children: React.ReactNode
   }
 
   return (
-    <div className="flex flex-col w-full h-screen"> {/* Removed relative positioning, widget handles its own fixed positioning */}
+    <div className="flex flex-col w-full h-auto min-h-[100svh]"> {/* Use safe viewport height for mobile */}
       {children}
       <Separator />
       <footer className="flex items-center justify-between p-2">
-        <Logo iconSize={16} fontSize="text-xl" />
+        <Logo href="/home" iconSize={16} fontSize="text-xl" />
         <ModeToggle />
       </footer>
       {/* {showChatbot && <DynamicChatbotWidget workflowId={workflowIdFromPath} />} */} {/* Temporarily commented out for debugging */}

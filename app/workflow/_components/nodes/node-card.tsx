@@ -38,7 +38,7 @@ export default function NodeCard({
         });
       }}
       className={cn(
-        'rounded-md cursor-pointer bg-background border-2 border-separate w-[420px] text-xs gap-1 flex flex-col',
+        'rounded-md cursor-pointer bg-background border-2 border-separate w-full max-w-[420px] min-w-[260px] text-xs gap-1 flex flex-col',
         isSelected && 'border-primary',
         hasInvalidInputs && 'border-destructive border-2'
       )}

@@ -34,7 +34,7 @@ export default function NavigationTabs({ workflowId }: { workflowId: string }) {
     <>
       {/* Desktop Tabs */}
       <div className="hidden sm:block">
-        <Tabs value={activeValue} className="w-[250px] md:w-[300px]"> {/* Adjusted width */}
+        <Tabs value={activeValue} className="w-auto">
           <TabsList className="grid w-full grid-cols-2">
             {tabs.map((tab) => (
               <Link key={tab.value} href={tab.href} legacyBehavior passHref>
@@ -51,7 +51,7 @@ export default function NavigationTabs({ workflowId }: { workflowId: string }) {
       <div className="block sm:hidden">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="flex items-center gap-1 w-[120px] justify-between">
+            <Button variant="outline" className="flex items-center gap-1 min-w-[120px] justify-between">
               <span>{currentTab.label}</span>
               <ChevronDown className="h-4 w-4" />
             </Button>

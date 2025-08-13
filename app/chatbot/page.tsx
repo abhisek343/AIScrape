@@ -67,11 +67,8 @@ export default function ChatPage() {
   const runMermaid = useCallback(() => {
     setTimeout(() => {
       try {
-        const mermaidElements = document.querySelectorAll(".mermaid");
-        if (mermaidElements.length > 0) {
-          // @ts-ignore
-          mermaid.run({ nodes: mermaidElements });
-        }
+        // @ts-ignore
+        mermaid.run({ querySelector: '.mermaid' });
       } catch (error) {
         console.error("Error running mermaid:", error);
       }

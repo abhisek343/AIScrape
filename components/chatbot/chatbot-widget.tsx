@@ -49,11 +49,9 @@ export function ChatbotWidget({ workflowId }: ChatbotWidgetProps) { // Destructu
     // Delay slightly to ensure DOM is updated
     setTimeout(() => {
       try {
-        const mermaidElements = document.querySelectorAll(".mermaid");
-        if (mermaidElements.length > 0) {
-          // @ts-ignore
-          mermaid.run({ nodes: mermaidElements });
-        }
+        // Use querySelector API per Mermaid v10+ recommended usage
+        // @ts-ignore
+        mermaid.run({ querySelector: '.mermaid' });
       } catch (error) {
         console.error("Error running mermaid:", error);
       }
@@ -79,6 +77,22 @@ export function ChatbotWidget({ workflowId }: ChatbotWidgetProps) { // Destructu
     setIsLoading(true);
 
     try {
+      // Simple slash command passthrough: create+run, then refresh editor
+      if (currentInput.trim().startsWith('/')) {
+        const res = await fetch('/api/workflows/slash', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: currentInput, workflowId }),
+        });
+        const data = await res.json();
+        if (data?.ok) {
+          setMessages((prev) => [...prev, { role: 'assistant', content: `Workflow created and started. Workflow ID: ${data.workflowId}. Execution ID: ${data.executionId}.` }]);
+          router.refresh();
+          return;
+        }
+        // Fallthrough to chatbot if unsupported slash
+      }
+
       const response = await fetch("/api/chatbot", {
         method: "POST",
         headers: {

@@ -12,8 +12,11 @@ export async function getCredentialsForUser() {
 
   return prisma.credential.findMany({
     where: { userId },
-    orderBy: {
-      name: 'asc',
+    select: {
+      id: true,
+      name: true,
+      createdAt: true,
     },
+    orderBy: { name: 'asc' },
   });
 }

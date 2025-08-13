@@ -14,6 +14,25 @@ import { ReadPropertyFromJsonExecutor } from '@/lib/workflow/executor/read-prope
 import { AddPropertyToJsonExecutor } from '@/lib/workflow/executor/add-property-to-json-executor';
 import { NavigateUrlExecutor } from '@/lib/workflow/executor/navigate-url-executor';
 import { ScrollToElementExecutor } from '@/lib/workflow/executor/scroll-to-element-executor';
+import { ScreenshotExecutor } from '@/lib/workflow/executor/screenshot-executor';
+import { EvaluateJsExecutor } from '@/lib/workflow/executor/evaluate-js-executor';
+import { SetViewportExecutor } from '@/lib/workflow/executor/set-viewport-executor';
+import { SetUserAgentExecutor } from '@/lib/workflow/executor/set-user-agent-executor';
+import { SetCookiesExecutor } from '@/lib/workflow/executor/set-cookies-executor';
+import { SetLocalStorageExecutor } from '@/lib/workflow/executor/set-local-storage-executor';
+import { HoverElementExecutor } from '@/lib/workflow/executor/hover-element-executor';
+import { KeyboardTypeExecutor } from '@/lib/workflow/executor/keyboard-type-executor';
+import { WaitForNetworkIdleExecutor } from '@/lib/workflow/executor/wait-for-network-idle-executor';
+import { WaitForNavigationExecutor } from '@/lib/workflow/executor/wait-for-navigation-executor';
+import { HttpRequestExecutor } from '@/lib/workflow/executor/http-request-executor';
+import { ExtractAttributesExecutor } from '@/lib/workflow/executor/extract-attributes-executor';
+import { ExtractListExecutor } from '@/lib/workflow/executor/extract-list-executor';
+import { RegexExtractExecutor } from '@/lib/workflow/executor/regex-extract-executor';
+import { InfiniteScrollExecutor } from '@/lib/workflow/executor/infinite-scroll-executor';
+import { DelayExecutor } from '@/lib/workflow/executor/delay-executor';
+import { DisplayDataExecutor } from '@/lib/workflow/executor/display-data-executor';
+import { StoreDataExecutor } from '@/lib/workflow/executor/store-data-executor';
+import { RetrieveDataExecutor } from '@/lib/workflow/executor/retrieve-data-executor';
 
 type ExecuterFn<T extends WorkflowTask> = (environment: ExecutionEnvironment<T>) => Promise<boolean>;
 
@@ -34,4 +53,23 @@ export const ExecutorRegistry: RegistryType = {
   ADD_PROPERTY_TO_JSON: AddPropertyToJsonExecutor,
   NAVIGATE_URL: NavigateUrlExecutor,
   SCROLL_TO_ELEMENT: ScrollToElementExecutor,
+  SCREENSHOT: ScreenshotExecutor,
+  EVALUATE_JS: EvaluateJsExecutor,
+  SET_VIEWPORT: SetViewportExecutor,
+  SET_USER_AGENT: SetUserAgentExecutor,
+  SET_COOKIES: SetCookiesExecutor,
+  SET_LOCAL_STORAGE: SetLocalStorageExecutor,
+  HOVER_ELEMENT: HoverElementExecutor,
+  KEYBOARD_TYPE: KeyboardTypeExecutor,
+  WAIT_FOR_NETWORK_IDLE: WaitForNetworkIdleExecutor,
+  WAIT_FOR_NAVIGATION: WaitForNavigationExecutor,
+  HTTP_REQUEST: HttpRequestExecutor,
+  EXTRACT_ATTRIBUTES: ExtractAttributesExecutor,
+  EXTRACT_LIST: ExtractListExecutor,
+  REGEX_EXTRACT: RegexExtractExecutor,
+  INFINITE_SCROLL: InfiniteScrollExecutor,
+  DELAY: DelayExecutor,
+  DISPLAY_DATA: DisplayDataExecutor,
+  STORE_DATA: StoreDataExecutor,
+  RETRIEVE_DATA: RetrieveDataExecutor,
 };

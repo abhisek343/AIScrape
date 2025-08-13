@@ -47,7 +47,9 @@ export default function FAQ() {
           </motion.p>
         </div>
 
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-3xl relative">
+          <div className="pointer-events-none absolute -top-10 -left-16 w-40 h-40 rounded-full bg-emerald-400/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-10 -right-16 w-40 h-40 rounded-full bg-emerald-500/10 blur-3xl" />
           <Accordion type="single" collapsible className="w-full">
             {faqs.map((item, idx) => (
               <AccordionItem key={item.q} value={`item-${idx}`}>
@@ -61,5 +63,6 @@ export default function FAQ() {
     </section>
   );
 }
+
 
 

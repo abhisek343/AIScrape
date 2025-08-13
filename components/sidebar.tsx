@@ -12,7 +12,7 @@ import UserAvailableCreditsBadge from '@/components/user-available-credits-badge
 
 const routes = [
   {
-    href: '',
+    href: 'home',
     label: 'Home',
     icon: HomeIcon,
   },
@@ -38,9 +38,9 @@ export function DesktopSidebar() {
   const activeRoute = routes.find((route) => route.href.length > 0 && pathname.includes(route.href)) || routes[0];
 
   return (
-    <div className="hidden relative md:block min-w-[280px] max-w-[280px] h-screen overflow-hidden w-full bg-primary/5 dark:bg-secondary/30 dark:text-foreground text-muted-foreground border-r-2 border-separate">
+    <div className="hidden relative md:block min-w-[240px] max-w-[260px] xl:min-w-[280px] xl:max-w-[280px] h-screen overflow-hidden w-full bg-primary/5 dark:bg-secondary/30 dark:text-foreground text-muted-foreground border-r-2 border-separate">
       <div className="flex-items-center justify-center gap-2 border-b-[1px] border-separate p-4">
-        <Logo />
+        <Logo href="/home" />
       </div>
       <div className="p-2">
         <UserAvailableCreditsBadge />
@@ -78,8 +78,8 @@ export function MobileSidebar() {
               <MenuIcon />
             </Button>
           </SheetTrigger>
-          <SheetContent className="w-[400px] sm:w-[540px] space-y-4" side="left">
-            <Logo />
+          <SheetContent className="w-[85vw] max-w-sm sm:w-[360px] space-y-4" side="left">
+            <Logo href="/home" />
             <UserAvailableCreditsBadge />
             <div className="flex flex-col gap-1">
               {routes.map((route) => (

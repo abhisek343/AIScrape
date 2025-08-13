@@ -18,7 +18,7 @@ export default function Editor({ workflow }: { workflow: Workflow }) {
   return (
     <FlowValidationContextProvider>
       <ReactFlowProvider>
-        <div className="flex flex-col h-full w-full overflow-hidden">
+        <div className="flex flex-col h-full w-full overflow-hidden" style={{ height: '100vh', width: '100vw' }}>
           <Topbar
             title="Workflow editor"
             subtitle={workflow.name}
@@ -26,7 +26,7 @@ export default function Editor({ workflow }: { workflow: Workflow }) {
             isPublished={workflow.status === WorkflowStatus.PUBLISHED}
             onToggleTaskMenuMobile={() => setIsTaskMenuOpenMobile((prev) => !prev)} // Added prop
           />
-          <section className="flex h-full overflow-hidden"> {/* Changed overflow-auto to overflow-hidden on parent */}
+          <section className="flex h-full overflow-hidden flex-col md:flex-row"> {/* Stack on mobile, row on desktop */}
             {/* Desktop Task Menu */}
             <div className="hidden md:block h-full overflow-auto"> {/* Added wrapper for desktop */}
               <TaskMenu />
@@ -35,13 +35,13 @@ export default function Editor({ workflow }: { workflow: Workflow }) {
             {/* Mobile Task Menu in a Sheet */}
             <div className="block md:hidden">
               <Sheet open={isTaskMenuOpenMobile} onOpenChange={setIsTaskMenuOpenMobile}>
-                <SheetContent side="left" className="w-[300px] p-0 overflow-auto"> {/* Adjusted width and padding */}
+                <SheetContent side="left" className="w-[85vw] max-w-xs sm:w-[300px] p-0 overflow-auto"> {/* Responsive width on mobile */}
                   <TaskMenu />
                 </SheetContent>
               </Sheet>
             </div>
             
-            <div className="flex-1 h-full overflow-auto"> {/* Wrapper for FlowEditor to take remaining space and scroll */}
+            <div className="flex-1 h-full overflow-auto" style={{ height: '100%', width: '100%' }}> {/* Wrapper for FlowEditor to take remaining space and scroll */}
               <FlowEditor workflow={workflow} />
             </div>
           </section>

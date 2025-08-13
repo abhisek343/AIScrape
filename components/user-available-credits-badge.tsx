@@ -14,7 +14,9 @@ export default function UserAvailableCreditsBadge() {
   const query = useQuery({
     queryKey: ['user-available-credits'],
     queryFn: () => getAvailableCredits(),
-    refetchInterval: 30 * 1000, // 30 seconds
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchInterval: 5 * 60 * 1000, // 5 minutes to reduce polling cost
   });
 
   return (

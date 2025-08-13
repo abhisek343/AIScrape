@@ -34,6 +34,8 @@ model Workflow {
 
   // User cannot have two workflows with the same name
   @@unique([name, userId])
+  @@index([userId, createdAt])
+  @@index([userId, status])
 }
 
 model WorkflowExecution {
@@ -52,6 +54,9 @@ model WorkflowExecution {
   phases ExecutionPhase[]
 
   workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
+  @@index([workflowId])
 }
 
 model ExecutionPhase {
@@ -72,6 +77,8 @@ model ExecutionPhase {
   execution           WorkflowExecution @relation(fields: [workflowExecutionId], references: [id], onDelete: Cascade)
 
   logs ExecutionLog[]
+
+  @@index([userId, startedAt, status])
 }
 
 model ExecutionLog {
@@ -84,7 +91,8 @@ model ExecutionLog {
   executionPhase   ExecutionPhase @relation(fields: [executionPhaseId], references: [id], onDelete: Cascade)
 }
 
-model UserBalanace {
+// Fixed naming: keep DB table as "UserBalanace" via map to avoid migration
+model UserBalance {
   userId  String @id
   credits Int    @default(0)
 }
@@ -103,11 +111,13 @@ model Credential {
 model UserPurchase {
   id          String   @id @default(cuid())
   userId      String
-  stripeId    String
+  stripeId    String   @unique
   description String
   amount      Int
   currency    String
   date        DateTime @default(now())
+
+  @@index([userId, date])
 }
 
 model ChatSession {
@@ -126,4 +136,18 @@ model UserProfileContext {
   profileData Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model WorkflowData {
+  id          String   @id @default(cuid())
+  userId      String
+  storageKey  String
+  data        String   // Store as text to handle large data
+  description String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, storageKey])
+  @@index([userId, expiresAt]) // For efficient cleanup queries
 }

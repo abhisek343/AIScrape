@@ -3,6 +3,7 @@
 import { PlayIcon } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
 import { useMutation } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -16,13 +17,15 @@ interface ExecuteBtnProps {
 }
 
 export default function ExecuteBtn({ workflowId, isMobile = false }: ExecuteBtnProps) {
+  const router = useRouter();
   const generate = useExecutionPlan();
   const { toObject } = useReactFlow();
 
   const mutation = useMutation({
     mutationFn: runWorkflow,
-    onSuccess: () => {
+    onSuccess: (exec) => {
       toast.success('Execution started', { id: 'flow-execution' });
+      router.push(`/workflow/runs/${exec.workflowId}/${exec.id}`);
     },
     onError: () => {
       toast.error('Something went wrong!', { id: 'flow-execution' });

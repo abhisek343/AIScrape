@@ -8,6 +8,7 @@ import prisma from '@/lib/prisma';
 import { TaskRegistry } from '@/lib/workflow/task/registry';
 import { ExecutorRegistry } from '@/lib/workflow/executor/registry';
 import { createLogCollector } from '@/lib/log';
+import { safeJsonParse, validateJsonSchema } from '@/lib/safe-json';
 import { ExecutionPhaseStatus, WorkflowExecutionStatus } from '@/types/workflow';
 import { AppNode } from '@/types/appnode';
 import { Environment, ExecutionEnvironment } from '@/types/executor';
@@ -17,16 +18,43 @@ import { LogCollector } from '@/types/log';
 export async function executeWorkflow(executionId: string, nextRunAt?: Date) {
   const execution = await prisma.workflowExecution.findUnique({
     where: { id: executionId },
-    include: { workflow: true, phases: true },
+    include: {
+      workflow: true,
+      phases: { orderBy: [{ number: 'asc' }] },
+    },
   });
 
   if (!execution) {
     throw new Error('execution not found');
   }
 
-  const edges = JSON.parse(execution.definition).edges as Edge[];
+  // Safely parse workflow definition
+  const definitionParseResult = safeJsonParse(execution.definition, {
+    maxSize: 5 * 1024 * 1024, // 5MB limit for workflow definitions
+    maxDepth: 20
+  });
 
-  const environment: Environment = { phases: {} };
+  if (!definitionParseResult.success) {
+    throw new Error(`Failed to parse workflow definition: ${definitionParseResult.error}`);
+  }
+
+  // Validate workflow definition structure
+  const definitionValidation = validateJsonSchema(definitionParseResult.data, {
+    type: 'object',
+    required: ['edges'],
+    properties: {
+      edges: { type: 'array' },
+      nodes: { type: 'array' }
+    }
+  });
+
+  if (!definitionValidation.valid) {
+    throw new Error(`Invalid workflow definition structure: ${definitionValidation.error}`);
+  }
+
+  const edges = definitionParseResult.data.edges as Edge[];
+
+  const environment: Environment = { phases: {}, userId: execution.userId };
 
   await initializeWorkflowExecution(execution.id, execution.workflowId, nextRunAt);
   await initializePhaseStatuses(execution);
@@ -89,38 +117,109 @@ async function finalizeWorkflowExecution(
   executionFailed: boolean,
   creditsConsumed: number
 ) {
-  const finalStatus = executionFailed ? ExecutionPhaseStatus.FAILED : ExecutionPhaseStatus.COMPLETED;
+  const finalStatus = executionFailed ? WorkflowExecutionStatus.FAILED : WorkflowExecutionStatus.COMPLETED;
 
-  await prisma.workflowExecution.update({
-    where: { id: executionId },
-    data: {
-      status: finalStatus,
-      completedAt: new Date(),
-      creditsConsumed,
-    },
-  });
-
-  await prisma.workflow
-    .update({
-      where: {
-        id: workflowId,
-        lastRunId: executionId,
-      },
+  try {
+    // Update execution status (this should always succeed)
+    await prisma.workflowExecution.update({
+      where: { id: executionId },
       data: {
-        lastRunStatus: finalStatus,
+        status: finalStatus,
+        completedAt: new Date(),
+        creditsConsumed,
       },
-    })
-    .catch((err) => {
-      // ignore
-      // this means that we have triggered other runs for this workflow
-      // while an execution was running
     });
+
+    // Update workflow status with retry logic for race conditions
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        await prisma.workflow.update({
+          where: {
+            id: workflowId,
+            lastRunId: executionId,
+          },
+          data: {
+            lastRunStatus: finalStatus,
+            lastRunAt: new Date(),
+          },
+        });
+        break; // Success, exit retry loop
+      } catch (updateError: any) {
+        retryCount++;
+        
+        if (retryCount >= maxRetries) {
+          // Log the error but don't fail the entire execution
+          console.warn(`Failed to update workflow status after ${maxRetries} retries:`, {
+            workflowId,
+            executionId,
+            error: updateError.message,
+            finalStatus
+          });
+          
+          // Check if this is a genuine race condition (lastRunId mismatch)
+          try {
+            const currentWorkflow = await prisma.workflow.findUnique({
+              where: { id: workflowId },
+              select: { lastRunId: true }
+            });
+            
+            if (currentWorkflow?.lastRunId !== executionId) {
+              console.info(`Workflow ${workflowId} has newer execution ${currentWorkflow?.lastRunId}, skipping status update for ${executionId}`);
+            } else {
+              console.error(`Unexpected error updating workflow status for ${workflowId}:`, updateError);
+            }
+          } catch (checkError) {
+            console.error(`Failed to check workflow status for ${workflowId}:`, checkError);
+          }
+          break;
+        }
+        
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 100));
+      }
+    }
+  } catch (error) {
+    console.error(`Critical error in finalizeWorkflowExecution for ${executionId}:`, error);
+    throw error; // Re-throw critical errors
+  }
 }
 
 async function executeWorkflowPhase(phase: ExecutionPhase, environment: Environment, edges: Edge[], userId: string) {
   const logCollector = createLogCollector();
   const startedAt = new Date();
-  const node = JSON.parse(phase.node) as AppNode;
+  
+  // Safely parse phase node
+  const nodeParseResult = safeJsonParse(phase.node, {
+    maxSize: 1024 * 1024, // 1MB limit for individual nodes
+    maxDepth: 10
+  });
+
+  if (!nodeParseResult.success) {
+    logCollector.error(`Failed to parse phase node: ${nodeParseResult.error}`);
+    await finalizePhase(phase.id, false, {}, logCollector, 0);
+    return { success: false, creditsConsumed: 0 };
+  }
+
+  // Validate node structure
+  const nodeValidation = validateJsonSchema(nodeParseResult.data, {
+    type: 'object',
+    required: ['id', 'data'],
+    properties: {
+      id: { type: 'string' },
+      data: { type: 'object' }
+    }
+  });
+
+  if (!nodeValidation.valid) {
+    logCollector.error(`Invalid node structure: ${nodeValidation.error}`);
+    await finalizePhase(phase.id, false, {}, logCollector, 0);
+    return { success: false, creditsConsumed: 0 };
+  }
+
+  const node = nodeParseResult.data as AppNode;
 
   setupEnvironmentForPhase(node, environment, edges);
 
@@ -199,7 +298,12 @@ async function executePhase(
 function setupEnvironmentForPhase(node: AppNode, environment: Environment, edges: Edge[]) {
   environment.phases[node.id] = { inputs: {}, outputs: {} };
 
-  const inputs = TaskRegistry[node.data.type].inputs;
+  const taskDef = TaskRegistry[node.data.type];
+  if (!taskDef) {
+    console.error('Unknown node type in setupEnvironmentForPhase:', node.data.type);
+    return;
+  }
+  const inputs = taskDef.inputs;
   for (const input of inputs) {
     if (input.type === TaskParamType.BROWSER_INSTANCE) continue;
 
@@ -217,7 +321,13 @@ function setupEnvironmentForPhase(node: AppNode, environment: Environment, edges
       continue;
     }
 
-    const outputValue = environment.phases[connectedEdge.source].outputs[connectedEdge.sourceHandle!];
+    const sourcePhase = environment.phases[connectedEdge.source];
+    const outputValue = sourcePhase?.outputs?.[connectedEdge.sourceHandle!];
+    if (outputValue === undefined || outputValue === null) {
+      // Source not executed yet or no output produced
+      console.error('Missing output for connected edge', connectedEdge.id || `${connectedEdge.source}->${connectedEdge.target}`);
+      continue;
+    }
 
     environment.phases[node.id].inputs[input.name] = outputValue;
   }
@@ -240,32 +350,108 @@ function createExecutionEnvironment(
     getPage: () => environment.page,
     setPage: (page: Page) => (environment.page = page),
 
+    getUserId: () => environment.userId,
+
     log: logCollector,
   };
 }
 
-async function cleanupEnvironment(environment: Environment) {
-  if (environment.browser) {
-    if (process.env.NODE_ENV !== 'production') {
-      // close locally in dev
-      await environment.browser.close().catch((err) => console.error('Cannot close browser, reason:', err));
-    } else {
-      // disconnect to brightdata in prod
-      await environment.browser.disconnect().catch((err) => console.error('Cannot disconnect browser, reason:', err));
+async function decrementCredits(userId: string, amount: number, logCollector: LogCollector) {
+  const maxRetries = 3;
+  let retryCount = 0;
+  
+  while (retryCount < maxRetries) {
+    try {
+      // Use a transaction to ensure atomicity
+      const result = await prisma.$transaction(async (tx: any) => {
+        // First check if user has sufficient credits
+        const userBalance = await tx.userBalance.findUnique({
+          where: { userId },
+          select: { credits: true }
+        });
+        
+        if (!userBalance) {
+          throw new Error('User balance not found');
+        }
+        
+        if (userBalance.credits < amount) {
+          throw new Error('Insufficient credits');
+        }
+        
+        // Update credits atomically
+        const updated = await tx.userBalance.update({
+          where: { userId },
+          data: { credits: { decrement: amount } },
+          select: { credits: true }
+        });
+        
+        return updated;
+      });
+      
+      logCollector.info(`Credits decremented successfully. Remaining: ${result.credits}`);
+      return true;
+      
+    } catch (error: any) {
+      retryCount++;
+      
+      if (error.message === 'Insufficient credits') {
+        logCollector.error('Insufficient balance');
+        return false;
+      }
+      
+      if (retryCount >= maxRetries) {
+        logCollector.error(`Cannot decrement credits after ${maxRetries} attempts: ${error.message}`);
+        return false;
+      }
+      
+      // Wait before retry (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 100));
     }
   }
+  
+  return false;
 }
 
-async function decrementCredits(userId: string, amount: number, logCollector: LogCollector) {
+async function cleanupEnvironment(environment: Environment) {
+  const cleanupPromises: Promise<void>[] = [];
+  
   try {
-    await prisma.userBalanace.update({
-      where: { userId, credits: { gte: amount } },
-      data: { credits: { decrement: amount } },
-    });
-
-    return true;
+    // Close all pages first
+    if (environment.browser) {
+      const pages = await environment.browser.pages();
+      for (const page of pages) {
+        cleanupPromises.push(
+          page.close().catch((err) => 
+            console.error('Cannot close page, reason:', err)
+          )
+        );
+      }
+    }
+    
+    // Wait for all pages to close
+    await Promise.allSettled(cleanupPromises);
+    
+    // Then close/disconnect browser
+    if (environment.browser) {
+      if (process.env.NODE_ENV !== 'production') {
+        // Close locally in dev
+        await environment.browser.close().catch((err) => 
+          console.error('Cannot close browser, reason:', err)
+        );
+      } else {
+        // Disconnect from brightdata in prod
+        await environment.browser.disconnect().catch((err) => 
+          console.error('Cannot disconnect browser, reason:', err)
+        );
+      }
+    }
+    
+    // Clear environment references
+    environment.browser = undefined;
+    environment.page = undefined;
+    environment.phases = {};
+    
   } catch (error) {
-    logCollector.error('Insufficient balance');
-    return false;
+    console.error('Error during environment cleanup:', error);
   }
 }

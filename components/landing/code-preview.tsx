@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
 
 const code = `POST /api/workflows/execute HTTP/1.1
 Authorization: Bearer <token>
@@ -14,6 +15,22 @@ Content-Type: application/json
 }`.trim();
 
 export default function CodePreview() {
+  const glowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = glowRef.current;
+    if (!el) return;
+    const onMove = (e: MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      el.style.setProperty('--mx', `${x}px`);
+      el.style.setProperty('--my', `${y}px`);
+    };
+    el.addEventListener('mousemove', onMove);
+    return () => el.removeEventListener('mousemove', onMove);
+  }, []);
+
   return (
     <section className="py-20 md:py-28">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 grid gap-10 md:grid-cols-2 items-center">
@@ -47,7 +64,8 @@ export default function CodePreview() {
           {/* shimmering accent */}
           <motion.div
             aria-hidden
-            className="absolute -inset-1 rounded-xl bg-gradient-to-r from-emerald-400/50 via-emerald-300/30 to-emerald-400/50 blur"
+            ref={glowRef}
+            className="absolute -inset-1 rounded-xl blur [background:radial-gradient(400px_400px_at_var(--mx,_50%)_var(--my,_50%),theme(colors.emerald.400/.35),transparent_40%)]"
             animate={{ opacity: [0.4, 0.8, 0.4] }}
             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
           />
@@ -67,5 +85,6 @@ export default function CodePreview() {
     </section>
   );
 }
+
 
 

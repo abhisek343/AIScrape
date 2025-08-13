@@ -14,10 +14,13 @@ const prismaClientSingleton = () => {
     }
   }
 
-  console.log('Trimmed DATABASE_URL in prisma.ts:', connectionString); // Log the potentially cleaned string
-
   if (!connectionString) {
-    throw new Error('DATABASE_URL environment variable is not set or empty');
+    console.warn('DATABASE_URL environment variable is not set or empty - database features will be disabled');
+    // Return a mock prisma client for development when DATABASE_URL is missing
+    return {
+      $connect: () => Promise.resolve(),
+      $disconnect: () => Promise.resolve(),
+    } as any;
   }
 
   const pool = new Pool({ connectionString });

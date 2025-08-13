@@ -86,7 +86,7 @@ export default function Footer() {
         <div className="mt-10 border-t pt-6 text-xs text-muted-foreground">
           <div className="flex items-center justify-between flex-col gap-3 md:flex-row">
             <p>&copy; {currentYear} AIScrape. All rights reserved.</p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <span>Newsletter</span>
               <Input type="email" placeholder="Your email" className="h-8 w-56" />
             </div>

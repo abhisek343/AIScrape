@@ -31,7 +31,7 @@ export default function ExecutionsTable({
   });
 
   return (
-    <div className="border rounded-lg shadow-md overflow-auto">
+    <div className="border rounded-lg shadow-md overflow-x-auto">
       <Table className="h-full">
         <TableHeader className="bg-muted">
           <TableRow>

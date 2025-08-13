@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useCallback } from 'react';
 import { Briefcase, ShoppingCart, Newspaper, Banknote, Microscope, Rocket } from 'lucide-react';
 
 const cases = [
@@ -37,6 +38,21 @@ const cases = [
 ];
 
 export default function UseCases() {
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    const rotateY = (px - 0.5) * 10;
+    const rotateX = -(py - 0.5) * 10;
+    el.style.transform = `perspective(900px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+  }, []);
+
+  const handleMouseLeave = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    el.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg)';
+  }, []);
+
   return (
     <section id="use-cases" className="py-20 md:py-28 bg-gradient-to-b from-emerald-50/70 to-white dark:from-emerald-900/20 dark:to-transparent">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -71,7 +87,9 @@ export default function UseCases() {
               transition={{ duration: 0.45, delay: idx * 0.05 }}
               whileHover={{ y: -6, scale: 1.01 }}
               whileTap={{ scale: 0.995 }}
-              className="group relative overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm"
+              className="group relative overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm will-change-transform"
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
             >
               <motion.div
                 aria-hidden

@@ -1,24 +1,21 @@
-import { auth } from '@clerk/nextjs/server';
-import { redirect } from 'next/navigation';
-import Header from '@/components/landing/header';
-import Hero from '@/components/landing/hero';
-import BrandLogos from '@/components/landing/brand-logos';
-import Features from '@/components/landing/features';
-import UseCases from '@/components/landing/use-cases';
-import Showcase from '@/components/landing/showcase';
-import CodePreview from '@/components/landing/code-preview';
-import HowItWorks from '@/components/landing/how-it-works';
-import FAQ from '@/components/landing/faq';
-import CTA from '@/components/landing/cta';
-import Footer from '@/components/landing/footer';
+import nextDynamic from 'next/dynamic';
+
+export const dynamic = 'force-static';
+
+const Header = nextDynamic(() => import('@/components/landing/header'));
+const Hero = nextDynamic(() => import('@/components/landing/hero'));
+// Below-the-fold sections are dynamically imported to reduce initial payload
+const BrandLogos = nextDynamic(() => import('@/components/landing/brand-logos'), { ssr: false });
+const Features = nextDynamic(() => import('@/components/landing/features'), { ssr: false });
+const UseCases = nextDynamic(() => import('@/components/landing/use-cases'), { ssr: false });
+const Showcase = nextDynamic(() => import('@/components/landing/showcase'), { ssr: false });
+const CodePreview = nextDynamic(() => import('@/components/landing/code-preview'), { ssr: false });
+const HowItWorks = nextDynamic(() => import('@/components/landing/how-it-works'), { ssr: false });
+const FAQ = nextDynamic(() => import('@/components/landing/faq'), { ssr: false });
+const CTA = nextDynamic(() => import('@/components/landing/cta'), { ssr: false });
+const Footer = nextDynamic(() => import('@/components/landing/footer'));
 
 export default function LandingPage() {
-  const { userId } = auth();
-
-  if (userId) {
-    redirect('/workflows');
-  }
-
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Header />

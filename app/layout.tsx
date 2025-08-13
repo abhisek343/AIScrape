@@ -12,6 +12,9 @@ const inter = Inter({ subsets: ['latin'], display: 'swap' });
 export const metadata: Metadata = {
   title: 'AIScrape',
   description: 'AI + web scraping = streamlined data workflows.',
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export const viewport = {
@@ -26,7 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider
-      afterSignOutUrl="/sign-in"
+      fallbackRedirectUrl="/sign-in"
       appearance={{
         elements: {
           formButtonPrimary: 'bg-primary hover:bg-primary/90 text-sm !shadow-none',

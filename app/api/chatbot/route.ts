@@ -6,10 +6,12 @@ import prisma from '@/lib/prisma';
 // Import workflow and credential actions
 import { getWorkflowsForUser } from '@/actions/workflows/get-workflows-for-user';
 import { createWorkflow } from '@/actions/workflows/create-workflow';
+import { updateWorkflow } from '@/actions/workflows/update-workflow';
 import { runWorkflow } from '@/actions/workflows/run-workflow';
 import { getCredentialsForUser } from '@/actions/credentials/get-credentials-for-user';
-import { Workflow, WorkflowExecution, Credential } from '@prisma/client'; // Import types from Prisma Client
-import { WorkflowExecutionTrigger } from '@/types/workflow'; // Import WorkflowExecutionTrigger
+import { WorkflowExecutionTrigger, WorkflowExecutionStatus } from '@/types/workflow'; // Import WorkflowExecutionTrigger
+import { TaskRegistry } from '@/lib/workflow/task/registry';
+import { AiAutomationSpec, buildDefinitionFromAiSpec } from '@/lib/workflow/ai-automation';
 
 // Initialize Google Generative AI
 if (!process.env.GOOGLE_API_KEY) {
@@ -22,6 +24,79 @@ if (!process.env.GOOGLE_API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || ""); // Provide default empty string if null/undefined to satisfy constructor, error will be caught by SDK if key is invalid/empty during API call.
+
+// Helpers for automation and awaiting runs
+async function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function extractFirstJsonBlock(text: string): string | null {
+  // Prefer fenced ```json blocks
+  const fenceMatch = text.match(/```json\s*([\s\S]*?)```/i);
+  if (fenceMatch && fenceMatch[1]) {
+    return fenceMatch[1].trim();
+  }
+  // Fallback: try to find the first top-level JSON object
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = text.slice(firstBrace, lastBrace + 1);
+    return candidate;
+  }
+  return null;
+}
+
+function safeJsonParse<T = any>(str: string): T | null {
+  try {
+    return JSON.parse(str) as T;
+  } catch {
+    return null;
+  }
+}
+
+// Moved AiAutomationSpec and builder to shared module
+
+async function waitForExecutionAndSummarize(executionId: string, timeoutMs = 90_000) {
+  const start = Date.now();
+  while (true) {
+    const exec = await prisma.workflowExecution.findUnique({
+      where: { id: executionId },
+      include: {
+        phases: { orderBy: { number: 'asc' }, include: { logs: true } },
+      },
+    });
+
+    if (!exec) return { status: 'NOT_FOUND', summary: 'Execution not found.' } as const;
+
+    if (
+      exec.status === WorkflowExecutionStatus.COMPLETED ||
+      exec.status === WorkflowExecutionStatus.FAILED
+    ) {
+      const outputs = (exec.phases || []).map((p, idx) => {
+        let out: Record<string, any> = {};
+        try {
+          out = p.outputs ? JSON.parse(p.outputs) : {};
+        } catch {}
+        return { phase: idx + 1, name: p.name, outputs: out };
+      });
+      const last = outputs[outputs.length - 1];
+      const lastOutSummary = last && Object.keys(last.outputs || {}).length
+        ? JSON.stringify(last.outputs)
+        : '(no outputs)';
+      const overall = `Run ${String(exec.status).toLowerCase()}. Credits consumed: ${exec.creditsConsumed}.`;
+      const phases = outputs
+        .map((o) => `Phase ${o.phase} - ${o.name}: ${JSON.stringify(o.outputs) || '{}'}`)
+        .join('\n');
+      return { status: exec.status, summary: `${overall}\nLast phase outputs: ${lastOutSummary}\n\nAll phase outputs:\n${phases}` } as const;
+    }
+
+    if (Date.now() - start > timeoutMs) {
+      return { status: 'TIMEOUT', summary: 'The run is still in progress. Check runs page for live status.' } as const;
+    }
+
+    await wait(800);
+  }
+}
 
 export async function POST(req: NextRequest) {
   if (!process.env.GOOGLE_API_KEY) {
@@ -81,84 +156,64 @@ export async function POST(req: NextRequest) {
       Under no circumstances should you generate, engage with, or respond to any content that is sexually explicit, hateful, harmful, or otherwise inappropriate. If a user attempts to ask about such topics, politely decline and redirect the conversation back to the project's scope.
     `;
     
-    // Define available workflow node types for the AI to use, matching TaskRegistry keys
-    const availableNodes = [
-      { 
-        type: "LAUNCH_BROWSER", 
-        description: "Launches a new browser session. The 'Website Url' is a required data input for the node. 'headless' (boolean, optional) and 'proxy' (string, optional) can also be provided in the node's data. Often the first step for web interactions.", 
-        dataInputs: ["Website Url (string, required for node data)", "headless (boolean, optional for node data)", "proxy (string, optional for node data)"], 
-        inputs: [], // No direct edge inputs, 'Website Url' is part of node data
-        outputs: ["Web page"], 
-        isEntryPoint: true 
-      },
-      { 
-        type: "NAVIGATE_URL", 
-        description: "Navigates the browser to a specific URL. Requires an active browser session ('Web page' input) and a 'URL' to navigate to.", 
-        inputs: ["Web page", "URL"], 
-        outputs: ["Web page"] 
-      },
-      { 
-        type: "PAGE_TO_HTML", 
-        description: "Extracts the full HTML content of the current page. Requires an active browser session ('Web page' input).", 
-        inputs: ["Web page"], 
-        outputs: ["Html", "Web page"] 
-      },
-      { 
-        type: "CLICK_ELEMENT", 
-        description: "Clicks on a specific element on a webpage. Requires an active browser session ('Web page' input) and a CSS 'Selector' for the element.", 
-        inputs: ["Web page", "Selector"], 
-        outputs: ["Web page"] 
-      },
-      { 
-        type: "FILL_INPUT", 
-        description: "Fills an input field on a webpage. Requires an active browser session ('Web page' input), a CSS 'Selector' for the input field, and the 'Value' to fill.", 
-        inputs: ["Web page", "Selector", "Value"], 
-        outputs: ["Web page"] 
-      },
-      { 
-        type: "WAIT_FOR_ELEMENT", 
-        description: "Waits for a specific element to appear or become hidden on the page. Requires an active browser session ('Web page' input) and a CSS 'Selector'. 'Visibility' ('visible' or 'hidden') is a required data input for the node.", 
-        inputs: ["Web page", "Selector"], 
-        dataInputs: ["Visibility (string, required for node data: 'visible' or 'hidden')"],
-        outputs: ["Web page"] 
-      },
-      { 
-        type: "SCROLL_TO_ELEMENT", 
-        description: "Scrolls the page to a specific element. Requires an active browser session ('Web page' input) and a CSS 'Selector'.", 
-        inputs: ["Web page", "Selector"], 
-        outputs: ["Web page"] 
-      },
-      { 
-        type: "EXTRACT_TEXT_FROM_ELEMENT", 
-        description: "Extracts text content from a specific HTML element. Requires 'Html' content (usually from PAGE_TO_HTML) and a CSS 'Selector'.", 
-        inputs: ["Html", "Selector"], 
-        outputs: ["Extracted text"] 
-      },
-      { 
-        type: "EXTRACT_DATA_WITH_AI", 
-        description: "Extracts structured data from text/HTML using AI. Requires 'Content' (text or HTML), 'Credentials' for the AI provider, and a 'Prompt' describing the extraction task.", 
-        inputs: ["Content", "Credentials", "Prompt"], 
-        outputs: ["Extracted data"] 
-      },
-      { 
-        type: "READ_PROPERTY_FROM_JSON", 
-        description: "Reads a value from a JSON string/object using a 'Property name' (e.g., 'data.user.name' or a simple key).", 
-        inputs: ["JSON", "Property name"], 
-        outputs: ["Property value"] 
-      },
-      { 
-        type: "ADD_PROPERTY_TO_JSON", 
-        description: "Adds a new key-value pair to a JSON string/object. Requires the 'JSON' string, the 'Property name' (key), and the 'Property value'.", 
-        inputs: ["JSON", "Property name", "Property value"], 
-        outputs: ["Updated JSON"] 
-      },
-      { 
-        type: "DELIVER_VIA_WEBHOOK", 
-        description: "Sends data to a specified webhook URL. Requires the 'Target URL' and the 'Body' (data to send, usually a JSON string).", 
-        inputs: ["Target URL", "Body"], 
-        outputs: [] // No outputs for edges
+    // Build rich, vivid node encyclopedia dynamically from TaskRegistry
+    const DetailedDescriptions: Record<string, string> = {
+      LAUNCH_BROWSER: 'Opens a fresh, automated browser and points it at the first URL in your journey. This is the doorway to any interactive scraping: cookies, scripts, and dynamic content all load just like a real user.',
+      NAVIGATE_URL: 'Directs the current browser tab to a new address. Use it to hop between pages, follow links, or load paginated content deliberately.',
+      PAGE_TO_HTML: 'Grabs the full HTML snapshot of the current page. Perfect when you need a static document to parse with CSS selectors or AI.',
+      CLICK_ELEMENT: 'Finds a clickable thing on the page and presses it—buttons, links, toggles. Ideal for opening modals, moving through pagination, or revealing hidden content.',
+      FILL_INPUT: 'Targets an input field and types the provided value. Combine with Wait or Click to log in, search, or submit forms.',
+      WAIT_FOR_ELEMENT: 'Pauses until a specific element is visible or hidden. This stabilizes flows on JS-heavy sites that render content asynchronously.',
+      SCROLL_TO_ELEMENT: 'Smoothly scrolls the page until a target element is in view. Useful for lazy-loaded lists or loading content deep down the page.',
+      EXTRACT_TEXT_FROM_ELEMENT: 'Plucks the human-readable text from elements you identify via CSS selectors. Great for titles, prices, bios, and any visible string.',
+      EXTRACT_DATA_WITH_AI: 'Reads raw text or HTML and asks an AI to return structured results according to your prompt—use it when rigid selectors fall short.',
+      READ_PROPERTY_FROM_JSON: 'Looks inside a JSON blob and pulls out a specific property by key or path. Handy for chaining data between steps.',
+      ADD_PROPERTY_TO_JSON: 'Takes an existing JSON string and adds another key-value pair, building richer objects as your flow progresses.',
+      DELIVER_VIA_WEBHOOK: 'Ships your collected data to an external system. Post it to your API, a Zapier webhook, or any endpoint that accepts payloads.',
+      SCREENSHOT: 'Captures a pixel-perfect image of the full page or a specific element. Ideal for proofs, audits, or visual archives.',
+      EVALUATE_JS: 'Executes custom JavaScript in the page context. Use it to compute values, read DOM state, or interact in ways prebuilt nodes do not cover.',
+      SET_VIEWPORT: 'Configures the page size and device scale. Simulate mobile, tablet, or desktop layouts to influence responsive content.',
+      SET_USER_AGENT: 'Impersonates a specific browser or device by setting the user agent string before navigation.',
+      SET_COOKIES: 'Seeds the page with cookies (e.g., auth, preferences) before interactions to emulate a returning user or bypass gates.',
+      SET_LOCAL_STORAGE: 'Writes directly into localStorage for the page—often used for flags or lightweight tokens before loading content.',
+      HOVER_ELEMENT: 'Moves the virtual mouse over an element to trigger hover menus or reveal hidden sections.',
+      KEYBOARD_TYPE: 'Types keystrokes into the active page, optionally with per-character delays to mimic human input.',
+      WAIT_FOR_NETWORK_IDLE: 'Waits until network requests settle. Use after navigation or interactions to ensure the page is truly ready.',
+      WAIT_FOR_NAVIGATION: 'Pauses until the page navigates and commits. A reliable guard after clicks that change the URL.',
+      HTTP_REQUEST: 'Performs a direct HTTP call (GET/POST/etc.) without the browser. Perfect for APIs, webhooks, or fetching supporting data.',
+      EXTRACT_ATTRIBUTES: 'Collects attribute values (like href, src, alt) from elements matched by a selector, returning structured lists.',
+      EXTRACT_LIST: 'Pulls repeated text items into a JSON array from lists, grids, or tables by selector.',
+      REGEX_EXTRACT: 'Runs a regular expression on any text to capture precise patterns like emails, IDs, or price tokens.',
+      INFINITE_SCROLL: 'Scrolls repeatedly to load more results on endless pages. Tune iterations and delays to match site behavior.',
+      DELAY: 'Intentionally waits for a fixed duration. Use sparingly when a site needs breathing room beyond event-based waits.',
+    };
+
+    function buildAvailableNodesDescription(): string {
+      const lines: string[] = [];
+      for (const [type, task] of Object.entries(TaskRegistry)) {
+        const dataInputs = (task.inputs || []).filter((p) => p.hideHandle);
+        const edgeInputs = (task.inputs || []).filter((p) => !p.hideHandle);
+        const outputs = task.outputs || [];
+        const desc = DetailedDescriptions[type] || `${task.label} node.`;
+        const parts: string[] = [];
+        parts.push(`- ${type} (${task.label}): ${desc}`);
+        if (task.isEntryPoint) parts.push(`Entry point: Yes.`);
+        if (typeof task.credits === 'number') parts.push(`Credits: ${task.credits}.`);
+        if (dataInputs.length > 0) {
+          parts.push(`Node Data Inputs: ${dataInputs.map((i) => `${i.name}`).join(', ')}.`);
+        }
+        if (edgeInputs.length > 0) {
+          parts.push(`Edge Inputs: ${edgeInputs.map((i) => `${i.name}`).join(', ')}.`);
+        }
+        if (outputs.length > 0) {
+          parts.push(`Outputs: ${outputs.map((o) => `${o.name}`).join(', ')}.`);
+        }
+        lines.push(parts.join(' '));
       }
-    ];
+      return lines.join('\n            ');
+    }
+
+    const availableNodesDescription = buildAvailableNodesDescription();
 
 // Unified prompt section for AI capabilities (planning and acting)
 
@@ -166,26 +221,34 @@ export async function POST(req: NextRequest) {
     if (clientWorkflowId && clientWorkflowId !== GENERAL_CHAT_PLACEHOLDER) { // Check if it's a specific workflow
       const currentWorkflow = await prisma.workflow.findUnique({
         where: { id: clientWorkflowId, userId: userId }, // Ensure user owns the workflow
-        select: { name: true, description: true }
+        select: { name: true, description: true, definition: true }
       });
       if (currentWorkflow) {
-        workflowContextHeader = `The user is currently working on a workflow named "${currentWorkflow.name}". Description: "${currentWorkflow.description || 'No description'}". Tailor your guidance to this specific workflow if the question seems related to it.\n\n`;
+        let narrative = '';
+        try {
+          const def = currentWorkflow.definition ? JSON.parse(currentWorkflow.definition) : null;
+          const nodes = Array.isArray(def?.nodes) ? def.nodes : [];
+          if (nodes.length > 0) {
+            const steps: string[] = [];
+            for (const node of nodes) {
+              const nodeType: string | undefined = node?.data?.type;
+              const reg = nodeType ? (TaskRegistry as any)[nodeType] : undefined;
+              const label = reg?.label || nodeType || 'Unknown';
+              const inputs = node?.data?.inputs || {};
+              const inputPairs = Object.entries(inputs).map(([k, v]) => `${k}: ${String(v)}`);
+              const desc = nodeType && DetailedDescriptions[nodeType] ? DetailedDescriptions[nodeType] : '';
+              const line = inputPairs.length > 0
+                ? `${label} (${nodeType}). ${desc} Inputs: ${inputPairs.join(', ')}.`
+                : `${label} (${nodeType}). ${desc}`;
+              steps.push(line.trim());
+            }
+            narrative = `Workflow outline:\n${steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`;
+          }
+        } catch {}
+        const wfDesc = currentWorkflow.description || 'No description';
+        workflowContextHeader = `The user is currently working on a workflow named "${currentWorkflow.name}". Description: "${wfDesc}". ${narrative ? `\n\n${narrative}\n\n` : ''}Tailor your guidance to this specific workflow if the question seems related to it.\n\n`;
       }
     }
-
-    const availableNodesDescription = availableNodes.map(node => {
-      let parts = [`- ${node.type}: ${node.description}`];
-      if (node.dataInputs && node.dataInputs.length > 0) {
-        parts.push(`Node Data Inputs: ${node.dataInputs.join(', ')}.`);
-      }
-      if (node.inputs && node.inputs.length > 0) {
-        parts.push(`Edge Inputs: ${node.inputs.join(', ')}.`);
-      }
-      if (node.outputs && node.outputs.length > 0) {
-        parts.push(`Outputs: ${node.outputs.join(', ')}.`);
-      }
-      return parts.join(' ');
-    }).join('\n            ');
 
     systemPrompt += `
 
@@ -198,7 +261,11 @@ When a user asks how to achieve a task (e.g., "how do I extract data from Linked
 1. Understand their goal.
 2. Suggest a sequence of the available nodes that could accomplish this.
 3. Explain what each node in your suggested sequence does and why it's useful for their goal.
-4. **To visually represent the suggested workflow, generate a Mermaid flowchart diagram (using \`graph TD;\` or \`graph LR;\`). Enclose the Mermaid code in a Markdown code block like this: \`\`\`mermaid\ngraph TD;\n  A[Node 1 Title] --> B(Node 2 Title);\n  B --> C{Decision?};\n  C -- Yes --> D[End];\n  C -- No --> E[Alternative Step];\n\`\`\` Replace node IDs (A, B, C) and titles with meaningful representations of the workflow steps. Ensure the diagram clearly shows the flow between the suggested nodes.**
+4. To visually represent the suggested workflow, generate a Mermaid flowchart diagram (using graph TD; or graph LR;). Enclose the Mermaid code in a fenced code block labeled mermaid (do not include backticks in your response here). Example:
+   mermaid:
+   graph TD;
+     A[Node 1] --> B[Node 2];
+   Replace node IDs and titles with meaningful representations.
 5. You DO NOT create or attempt to create workflows. Your purpose is to guide the user so they can build the workflow themselves in the editor, using your textual explanation and the Mermaid diagram as aids.
 
 Your entire response, including any Mermaid code block, should be a single plain text string. The frontend will handle rendering the diagram.
@@ -208,16 +275,44 @@ You DO NOT run workflows; guide the user to do this manually.
 
 Maintain a helpful, safe, and project-focused conversation.
     `;
+
+    // Automation mode: If the user explicitly asks to "automate", "create", or "build" a workflow,
+    // produce ONLY one JSON block describing the workflow to create or update, with the schema below.
+    // The client will parse and execute it. Do not include any prose before or after the JSON.
+    systemPrompt += `
+
+    AUTOMATION MODE (STRICT):
+    Only if the user explicitly turns automation on (e.g., says "automation on", or explicitly says to automate/build/create/update a workflow), output ONLY one JSON object (no extra text, no markdown fences). The JSON schema is:
+{
+  "action": "CREATE_AND_RUN" | "CREATE_ONLY" | "UPDATE_AND_RUN" | "UPDATE_ONLY",
+  "workflow": {
+    "name": "Short descriptive name (omit for UPDATE_*)",
+    "description": "Optional description",
+    "nodes": [
+      { "key": "A", "type": "LAUNCH_BROWSER", "inputs": { "Website Url": "https://example.com" } },
+      { "key": "B", "type": "NAVIGATE_URL", "inputs": { "URL": "https://example.com/path" } }
+    ],
+    "edges": [
+      { "from": { "node": "A", "output": "Web page" }, "to": { "node": "B", "input": "Web page" } }
+    ]
+  }
+}
+    Rules:
+    - Do NOT output JSON unless the user explicitly requests automation (e.g., "automation on", "automate", "create a workflow", "update the workflow").
+    - Use only node types listed above exactly.
+    - Inputs must match the node's input names exactly.
+    - Ensure at least one entry-point node (e.g., LAUNCH_BROWSER). Connect edges so all required inputs are satisfied.
+    - For UPDATE_* actions, omit name and target the currently open workflow context.
+`;
     
     const finalSystemPrompt = workflowContextHeader + systemPrompt;
 
     // Prepare the contents for the model - system prompt is prepended as a user message
     const preparedContents = [{ role: 'user' as const, parts: [{ text: finalSystemPrompt }] }, ...messages];
 
-    // Get the generative model
-    const generativeModel = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash", // Updated model
-      // Optional: Add safety settings if needed, matching typical Gemini configurations
+    // Get the generative model with optional Google Search grounding tools enabled via env flag
+    const modelOptions: any = {
+      model: "gemini-2.0-flash",
       safetySettings: [
         {
           category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -236,40 +331,62 @@ Maintain a helpful, safe, and project-focused conversation.
           threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
         },
       ],
-    });
+    };
+    if (String(process.env.GEMINI_ENABLE_GOOGLE_SEARCH).toLowerCase() === 'true') {
+      // Cast to any to avoid type mismatches across SDK versions
+      modelOptions.tools = [{ googleSearch: {} }];
+    }
+    const generativeModel = genAI.getGenerativeModel(modelOptions);
 
     // Send the latest user message to the model
     const result = await generativeModel.generateContent({
       contents: preparedContents,
-      // generationConfig: { // Optional: if you need to control output, e.g., max tokens
-      //   maxOutputTokens: 2048,
-      // }
+      // generationConfig: { maxOutputTokens: 2048 },
+      // Optionally pass tool configuration if search is enabled (cast to any for forward-compat)
+      ...(String(process.env.GEMINI_ENABLE_GOOGLE_SEARCH).toLowerCase() === 'true'
+        ? ({ toolConfig: { googleSearch: { disableAttribution: false } } as any })
+        : {}),
     });
     const response = result.response;
     let text = response.text(); // Correct way to get text
 
-    // AI no longer creates workflows directly. The regex and related logic are removed.
-    // const aiCreateWorkflowRegex = /createWorkflow\("([^"]+)",\s*\`([\s\S]+?)\`,\s*"([^"]*)",\s*false\)/;
-    // const aiMatch = text.match(aiCreateWorkflowRegex);
-    // let workflowCreatedOrAttemptedByAI = false; // This variable is no longer needed.
+    // Try to detect AUTOMATION MODE output (strict JSON) only if explicitly requested
+    let automationSummary: string | null = null;
+    const userAskedForAutomation = /\b(automation on|automate|create (and run )?a workflow|update (and run )?the workflow|build a workflow)\b/i.test(message);
+    const jsonBlock = userAskedForAutomation ? extractFirstJsonBlock(text) : null;
+    if (jsonBlock) {
+      const parsed = safeJsonParse<AiAutomationSpec>(jsonBlock);
+      if (parsed && parsed.workflow && Array.isArray(parsed.workflow.nodes)) {
+        try {
+          const definition = buildDefinitionFromAiSpec(parsed);
+          const shouldRun = (parsed.action || '').includes('RUN');
 
-    // if (aiMatch) {
-      // workflowCreatedOrAttemptedByAI = true; // This variable is no longer needed.
-      // const [, workflowName, workflowDefinitionJson, workflowDescription] = aiMatch;
-      // try {
-      //   console.log(`AI initiated workflow creation: Name: ${workflowName}`);
-      //   const newWorkflow = await createWorkflow(
-      //     workflowName,
-      //     workflowDefinitionJson,
-      //     workflowDescription || undefined,
-      //     false
-      //   );
-      //   console.log(`AI successfully created workflow: ${newWorkflow.id}`);
-      // } catch (error: any) {
-      //   console.error("Error actually creating workflow from AI's plan:", error);
-      //   text = `I tried to create the workflow "${workflowName}" as per my understanding, but an error occurred: ${error.message || 'Unknown error'}. Please check the server logs.`;
-      // }
-    // }
+          if (clientWorkflowId && (parsed.action === 'UPDATE_ONLY' || parsed.action === 'UPDATE_AND_RUN')) {
+            await updateWorkflow({ id: clientWorkflowId, definition });
+            if (shouldRun) {
+              const execution = await runWorkflow({ workflowId: clientWorkflowId, trigger: WorkflowExecutionTrigger.MANUAL, shouldRedirect: false, currentFlowDefinition: definition });
+              const result = await waitForExecutionAndSummarize(execution.id);
+              automationSummary = `Workflow updated and ${result.status === 'TIMEOUT' ? 'run started (await timeout)' : 'run completed'} for current workflow. Execution ID: ${execution.id}\n${result.summary}`;
+            } else {
+              automationSummary = `Workflow updated for current workflow.`;
+            }
+          } else {
+            const name = parsed.workflow.name || `AI Workflow ${new Date().toISOString()}`;
+            const description = parsed.workflow.description || undefined;
+            const newWorkflow = await createWorkflow(name, definition, description, false);
+            if (shouldRun) {
+              const execution = await runWorkflow({ workflowId: newWorkflow.id, trigger: WorkflowExecutionTrigger.MANUAL, shouldRedirect: false });
+              const result = await waitForExecutionAndSummarize(execution.id);
+              automationSummary = `Workflow created (ID: ${newWorkflow.id}) and ${result.status === 'TIMEOUT' ? 'run started (await timeout)' : 'run completed'}. Execution ID: ${execution.id}\n${result.summary}`;
+            } else {
+              automationSummary = `Workflow created successfully. ID: ${newWorkflow.id}`;
+            }
+          }
+        } catch (err: any) {
+          automationSummary = `Failed to process AI automation spec: ${err?.message || 'Unknown error'}`;
+        }
+      }
+    }
 
     // Handle other specific commands if a workflow wasn't created by AI in this step.
     // These rely on the AI's textual output indicating intent, or simple keyword matching for now.
@@ -278,7 +395,10 @@ Maintain a helpful, safe, and project-focused conversation.
     // The AI is now expected to guide the user or respond to simple commands like listing.
     // Direct keyword matching for "list workflows" and "run workflow" can be kept for now,
     // or eventually be fully replaced by AI intent parsing if the prompt proves effective.
-    if (message.toLowerCase().includes('list workflows') || text.toLowerCase().includes("call `getworkflowsforuser()`")) {
+    if (automationSummary) {
+      text = automationSummary;
+    }
+    else if (message.toLowerCase().includes('list workflows') || text.toLowerCase().includes("call `getworkflowsforuser()`")) {
       const workflows = await getWorkflowsForUser();
       text = `Here are your existing workflows:\n${workflows.map(w => `- ${w.name} (ID: ${w.id})`).join('\n') || 'No workflows found.'}`;
     }

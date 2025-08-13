@@ -6,9 +6,16 @@ export async function NavigateUrlExecutor(environment: ExecutionEnvironment<type
     const url = environment.getInput('URL');
     if (!url) {
       environment.log.error('input->url not defined');
+      return false;
     }
 
-    await environment.getPage()!.goto(url);
+    const page = environment.getPage();
+    if (!page) {
+      environment.log.error('No page found');
+      return false;
+    }
+
+    await page.goto(url);
     environment.log.info(`Visited ${url}`);
 
     return true;

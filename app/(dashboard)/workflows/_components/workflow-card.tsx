@@ -52,8 +52,8 @@ export default function WorkflowCard({ workflow }: { workflow: Workflow }) {
 
   return (
     <Card className="border border-separate shadow-sm rounded-lg overflow-hidden hover:shadow-md dark:shadow-primary/30 group/card">
-      <CardContent className="p-4 flex items-center justify-between h-[100px]">
-        <div className="flex items-center just space-x-3">
+      <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-4 h-auto md:h-[100px]">
+        <div className="flex items-start sm:items-center just space-x-3 w-full">
           <div
             className={cn(
               'w-10 h-10 rounded-full flex items-center justify-center',

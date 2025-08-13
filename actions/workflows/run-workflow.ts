@@ -112,7 +112,27 @@ export async function runWorkflow(params: RunWorkflowParams): Promise<WorkflowEx
     throw new Error('Workflow execution not created');
   }
 
-  executeWorkflow(execution.id); // run this on background
+  // Execute workflow in background with proper error handling
+  executeWorkflow(execution.id)
+    .then(() => {
+      console.log(`Workflow execution ${execution.id} completed successfully`);
+    })
+    .catch(async (error) => {
+      console.error(`Workflow execution ${execution.id} failed:`, error);
+      
+      // Update execution status to failed if not already updated
+      try {
+        await prisma.workflowExecution.update({
+          where: { id: execution.id },
+          data: {
+            status: WorkflowExecutionStatus.FAILED,
+            completedAt: new Date(),
+          },
+        });
+      } catch (updateError) {
+        console.error(`Failed to update execution status for ${execution.id}:`, updateError);
+      }
+    });
 
   if (shouldRedirect) {
     redirect(`/workflow/runs/${workflowId}/${execution.id}`);

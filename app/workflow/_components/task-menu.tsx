@@ -25,6 +25,13 @@ export default function TaskMenu() {
             <TaskMenuBtn taskType={TaskType.FILL_INPUT} />
             <TaskMenuBtn taskType={TaskType.CLICK_ELEMENT} />
             <TaskMenuBtn taskType={TaskType.SCROLL_TO_ELEMENT} />
+            <TaskMenuBtn taskType={TaskType.HOVER_ELEMENT} />
+            <TaskMenuBtn taskType={TaskType.KEYBOARD_TYPE} />
+            <TaskMenuBtn taskType={TaskType.SET_VIEWPORT} />
+            <TaskMenuBtn taskType={TaskType.SET_USER_AGENT} />
+            <TaskMenuBtn taskType={TaskType.SET_COOKIES} />
+            <TaskMenuBtn taskType={TaskType.SET_LOCAL_STORAGE} />
+            <TaskMenuBtn taskType={TaskType.EVALUATE_JS} />
           </AccordionContent>
         </AccordionItem>
 
@@ -34,14 +41,21 @@ export default function TaskMenu() {
             <TaskMenuBtn taskType={TaskType.PAGE_TO_HTML} />
             <TaskMenuBtn taskType={TaskType.EXTRACT_TEXT_FROM_ELEMENT} />
             <TaskMenuBtn taskType={TaskType.EXTRACT_DATA_WITH_AI} />
+            <TaskMenuBtn taskType={TaskType.EXTRACT_ATTRIBUTES} />
+            <TaskMenuBtn taskType={TaskType.EXTRACT_LIST} />
+            <TaskMenuBtn taskType={TaskType.REGEX_EXTRACT} />
+            <TaskMenuBtn taskType={TaskType.SCREENSHOT} />
           </AccordionContent>
         </AccordionItem>
 
         <AccordionItem value="storage">
           <AccordionTrigger className="font-bold">Data storage</AccordionTrigger>
           <AccordionContent className="flex flex-col gap-1">
+            <TaskMenuBtn taskType={TaskType.STORE_DATA} />
+            <TaskMenuBtn taskType={TaskType.RETRIEVE_DATA} />
             <TaskMenuBtn taskType={TaskType.READ_PROPERTY_FROM_JSON} />
             <TaskMenuBtn taskType={TaskType.ADD_PROPERTY_TO_JSON} />
+            <TaskMenuBtn taskType={TaskType.HTTP_REQUEST} />
           </AccordionContent>
         </AccordionItem>
 
@@ -49,12 +63,17 @@ export default function TaskMenu() {
           <AccordionTrigger className="font-bold">Timing controls</AccordionTrigger>
           <AccordionContent className="flex flex-col gap-1">
             <TaskMenuBtn taskType={TaskType.WAIT_FOR_ELEMENT} />
+            <TaskMenuBtn taskType={TaskType.WAIT_FOR_NETWORK_IDLE} />
+            <TaskMenuBtn taskType={TaskType.WAIT_FOR_NAVIGATION} />
+            <TaskMenuBtn taskType={TaskType.INFINITE_SCROLL} />
+            <TaskMenuBtn taskType={TaskType.DELAY} />
           </AccordionContent>
         </AccordionItem>
 
         <AccordionItem value="results">
           <AccordionTrigger className="font-bold">Result delivery</AccordionTrigger>
           <AccordionContent className="flex flex-col gap-1">
+            <TaskMenuBtn taskType={TaskType.DISPLAY_DATA} />
             <TaskMenuBtn taskType={TaskType.DELIVER_VIA_WEBHOOK} />
           </AccordionContent>
         </AccordionItem>

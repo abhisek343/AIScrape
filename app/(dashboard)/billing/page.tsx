@@ -15,7 +15,7 @@ import { Period } from '@/types/analytics';
 
 export default function BillingPage() {
   return (
-    <div className="mx-auto p-4 space-y-8">
+    <div className="mx-auto p-4 space-y-8 max-w-screen-lg">
       <h1 className="text-3xl font-bold">Billing</h1>
       <Suspense fallback={<Skeleton className="h-[166px] w-full" />}>
         <BalanceCard />

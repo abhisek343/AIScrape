@@ -1,7 +1,11 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { currentUser } from '@clerk/nextjs/server';
 
-export default function NotFoundPage() {
+export default async function NotFoundPage() {
+  const user = await currentUser();
+  const backHref = user ? '/home' : '/';
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
       <div className="text-center">
@@ -12,7 +16,7 @@ export default function NotFoundPage() {
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <Link
-            href="/"
+            href={backHref}
             className="flex items-center justify-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/80 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />

@@ -71,8 +71,8 @@ export default function ExecutionViewer({ initialData }: { initialData: Executio
   const creditsConsumed = getPhasesTotalCost(query.data?.phases || []);
 
   return (
-    <div className="flex w-full h-full">
-      <aside className="w-[440px] min-w-[440px] max-w-[440px] border-r-2 border-separate flex flex-grow flex-col overflow-hidden">
+    <div className="flex w-full h-full flex-col md:flex-row">
+      <aside className="w-full md:w-[320px] md:min-w-[320px] md:max-w-[360px] border-b-2 md:border-b-0 md:border-r-2 border-separate flex flex-grow flex-col overflow-hidden">
         <div className="py-4 px-2">
           <ExecutionLabel
             icon={CircleDashedIcon}

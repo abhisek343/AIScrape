@@ -7,6 +7,9 @@ export type Environment = {
   browser?: Browser;
   page?: Page;
 
+  // Auth/context
+  userId?: string;
+
   // Phases with nodeId/taskId as key
   phases: Record<
     string, //key: nodeId/taskId
@@ -26,6 +29,9 @@ export type ExecutionEnvironment<T extends WorkflowTask> = {
 
   getPage(): Page | undefined;
   setPage(page: Page): void;
+
+  // Access execution scoped user id (for credential scoping etc.)
+  getUserId(): string | undefined;
 
   log: LogCollector;
 };

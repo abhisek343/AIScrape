@@ -31,7 +31,7 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section className="py-20 md:py-28 bg-muted/50 dark:bg-background/50">
+    <section id="how-it-works" className="py-20 md:py-28 bg-muted/50 dark:bg-background/50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <motion.h2
@@ -59,7 +59,9 @@ export default function HowItWorks() {
 
         <div className="relative">
           {/* Connection line */}
-          <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-200 via-cyan-200 to-indigo-200 dark:from-indigo-800 dark:via-cyan-800 dark:to-indigo-800 transform -translate-y-1/2 z-0"></div>
+          <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-200 via-cyan-200 to-indigo-200 dark:from-indigo-800 dark:via-cyan-800 dark:to-indigo-800 transform -translate-y-1/2 z-0">
+            <div className="absolute inset-0 animate-pulse [mask-image:linear-gradient(to_right,transparent,black,transparent)] bg-[linear-gradient(90deg,theme(colors.emerald.400/.0)_0%,theme(colors.emerald.400/.5)_50%,theme(colors.emerald.400/.0)_100%)]"></div>
+          </div>
 
           <div className="grid gap-8 lg:gap-12 md:grid-cols-3">
             {steps.map((step, index) => (
@@ -76,7 +78,9 @@ export default function HowItWorks() {
                   <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{step.number}</span>
                 </div>
 
-                <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-200 dark:border-slate-700 shadow-lg text-center">
+                 <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-200 dark:border-slate-700 shadow-lg text-center relative overflow-hidden">
+                   <div className="absolute -top-10 -right-10 w-24 h-24 bg-emerald-400/10 rounded-full blur-2xl" />
+                   <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-emerald-100 dark:bg-emerald-900/40 rounded-xl mb-6">
                     <step.icon className="h-6 w-6 text-emerald-700 dark:text-emerald-300" />
                   </div>

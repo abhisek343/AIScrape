@@ -3,6 +3,7 @@
 import { DollarSign, Zap, Workflow, CreditCard } from 'lucide-react';
 
 import StatsCard from './_components/stats-card';
+import WorkflowGuides from './_components/workflow-guides';
 import { Separator } from '@/components/ui/separator';
 import BreadcrumbHeader from '@/components/breadcrumb-header';
 
@@ -15,7 +16,7 @@ export default function DashboardPage() {
           A quick overview of your account and usage.
         </p>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Credits"
           value={100}
@@ -38,10 +39,7 @@ export default function DashboardPage() {
         />
       </div>
       <Separator className="my-6" />
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-        <p>No recent activity to display.</p>
-      </div>
+      <WorkflowGuides />
     </div>
   );
 }

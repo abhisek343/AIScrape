@@ -5,8 +5,8 @@ import { AppNode, AppNodeMissingInputs } from '@/types/appnode';
 import { WorkflowExecutionPlan, WorkflowExecutionPlanPhase, WorkflowTask } from '@/types/workflow'; // Added WorkflowTask
 
 export enum FlowToExecutionPlanValidationError {
-  'NO_ENTRY_POINT',
-  'INVALID_INPUTS',
+  NO_ENTRY_POINT = 'NO_ENTRY_POINT',
+  INVALID_INPUTS = 'INVALID_INPUTS',
 }
 
 type FlowToExecutionPlanType = {
@@ -18,6 +18,45 @@ type FlowToExecutionPlanType = {
 };
 
 export function flowToExecutionPlan(nodes: AppNode[], edges: Edge[]): FlowToExecutionPlanType {
+  // Validate input arrays
+  if (!Array.isArray(nodes) || !Array.isArray(edges)) {
+    return {
+      error: {
+        type: FlowToExecutionPlanValidationError.NO_ENTRY_POINT,
+      },
+    };
+  }
+
+  // Check for empty workflow
+  if (nodes.length === 0) {
+    return {
+      error: {
+        type: FlowToExecutionPlanValidationError.NO_ENTRY_POINT,
+      },
+    };
+  }
+
+  // Check for duplicate node IDs
+  const nodeIds = new Set<string>();
+  for (const node of nodes) {
+    if (!node.id || typeof node.id !== 'string') {
+      return {
+        error: {
+          type: FlowToExecutionPlanValidationError.NO_ENTRY_POINT,
+        },
+      };
+    }
+    if (nodeIds.has(node.id)) {
+      return {
+        error: {
+          type: FlowToExecutionPlanValidationError.INVALID_INPUTS,
+          invalidElements: [{ nodeId: node.id, inputs: ['Duplicate node ID'] }],
+        },
+      };
+    }
+    nodeIds.add(node.id);
+  }
+
   const entryPoint = nodes.find((node) => {
     const taskDefinition = TaskRegistry[node.data.type];
     if (!taskDefinition) {
@@ -67,7 +106,10 @@ export function flowToExecutionPlan(nodes: AppNode[], edges: Edge[]): FlowToExec
 
   planned.add(entryPoint.id);
 
-  for (let phase = 2; phase <= nodes.length && planned.size < nodes.length; phase++) {
+  // Prevent infinite loops by limiting phases
+  const maxPhases = Math.min(nodes.length * 2, 100); // Reasonable upper bound
+  
+  for (let phase = 2; phase <= maxPhases && planned.size < nodes.length; phase++) {
     const nextPhase: WorkflowExecutionPlanPhase = { phase, nodes: [] };
 
     for (const currentNode of nodes) {
@@ -102,10 +144,31 @@ export function flowToExecutionPlan(nodes: AppNode[], edges: Edge[]): FlowToExec
 
       nextPhase.nodes.push(currentNode);
     }
+    
+    // If no nodes were added to this phase, we've reached a dead end
+    if (nextPhase.nodes.length === 0) {
+      break;
+    }
+    
     for (const node of nextPhase.nodes) {
       planned.add(node.id);
     }
     executionPlan.push(nextPhase);
+  }
+
+  // Check for unplanned nodes (potential cycles or disconnected nodes)
+  const unplannedNodes = nodes.filter(node => !planned.has(node.id));
+  if (unplannedNodes.length > 0) {
+    console.warn(`Found ${unplannedNodes.length} unplanned nodes, possible cycles or disconnected nodes:`, 
+      unplannedNodes.map(n => n.id));
+    
+    // Add unplanned nodes as errors
+    for (const node of unplannedNodes) {
+      inputsWithErrors.push({ 
+        nodeId: node.id, 
+        inputs: ['Node is not reachable or part of a cycle'] 
+      });
+    }
   }
 
   if (inputsWithErrors.length > 0) {

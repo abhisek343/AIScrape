@@ -25,7 +25,9 @@ import { AppNode } from '@/types/appnode';
 
 import '@xyflow/react/dist/style.css';
 import { TaskRegistry } from '@/lib/workflow/task/registry';
-import { ChatbotWidget } from '@/components/chatbot/chatbot-widget';
+import dynamic from 'next/dynamic';
+
+const ChatbotWidget = dynamic(() => import('@/components/chatbot/chatbot-widget').then(m => m.ChatbotWidget), { ssr: false });
 
 const nodeTypes = {
   AIScrapeNode: NodeComponent,
@@ -41,7 +43,7 @@ const fitViewOptions = { padding: 1 };
 export default function FlowEditor({ workflow }: { workflow: Workflow }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const { setViewport, screenToFlowPosition, updateNodeData } = useReactFlow();
+  const { setViewport, screenToFlowPosition, updateNodeData, fitView } = useReactFlow();
 
   useEffect(() => {
     try {
@@ -51,14 +53,17 @@ export default function FlowEditor({ workflow }: { workflow: Workflow }) {
       setNodes(flow.nodes || []);
       setEdges(flow.edges || []);
 
-      if (!flow.viewport) return;
-
-    const { x = 0, y = 0, zoom = 1 } = flow.viewport;
-    setViewport({ x, y, zoom });
+      if (flow.viewport) {
+        const { x = 0, y = 0, zoom = 1 } = flow.viewport;
+        setViewport({ x, y, zoom });
+      } else {
+        // No saved viewport; auto fit view when nodes exist
+        setTimeout(() => fitView({ padding: 0.2 }), 100);
+      }
   } catch (error) {
     console.error("Failed to parse workflow definition in FlowEditor:", error);
   }
-}, [workflow.definition, setEdges, setNodes, setViewport]);
+}, [workflow.definition, setEdges, setNodes, setViewport, fitView]);
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -143,8 +148,16 @@ export default function FlowEditor({ workflow }: { workflow: Workflow }) {
     [nodes, edges]
   );
 
+  // Ensure we fit to nodes whenever they change (robust against missing viewport)
+  useEffect(() => {
+    if (nodes.length > 0) {
+      const id = setTimeout(() => fitView({ padding: 0.2 }), 200);
+      return () => clearTimeout(id);
+    }
+  }, [nodes.length, edges.length, fitView]);
+
   return (
-    <main className="h-full w-full">
+    <main className="h-full w-full min-h-[60svh]" style={{ height: '100%', width: '100%' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -164,7 +177,7 @@ export default function FlowEditor({ workflow }: { workflow: Workflow }) {
         <Controls position="top-left" fitViewOptions={fitViewOptions} />
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
       </ReactFlow>
-      <ChatbotWidget />
+      <ChatbotWidget workflowId={workflow.id} />
     </main>
   );
 }

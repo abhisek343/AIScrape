@@ -9,10 +9,10 @@ export async function downloadInvoice(id: string) {
   const { userId } = auth();
 
   if (!userId) {
-    throw new Error('Unautheticated');
+    throw new Error('Unauthenticated');
   }
 
-  const purchase = await prisma.userPurchase.findUnique({
+  const purchase = await prisma.userPurchase.findFirst({
     where: { id, userId },
   });
 

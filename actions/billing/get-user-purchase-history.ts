@@ -8,7 +8,7 @@ export async function getUserPurchaseHistory() {
   const { userId } = auth();
 
   if (!userId) {
-    throw new Error('Unautheticated');
+    throw new Error('Unauthenticated');
   }
 
   return prisma.userPurchase.findMany({
