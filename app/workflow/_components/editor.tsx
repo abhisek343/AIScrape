@@ -28,7 +28,7 @@ export default function Editor({ workflow }: { workflow: Workflow }) {
           />
           <section className="flex h-full overflow-hidden flex-col md:flex-row"> {/* Stack on mobile, row on desktop */}
             {/* Desktop Task Menu */}
-            <div className="hidden md:block h-full overflow-auto"> {/* Added wrapper for desktop */}
+            <div className="hidden md:block h-full overflow-auto w-80 min-w-80"> {/* Added wrapper for desktop with fixed width */}
               <TaskMenu />
             </div>
 

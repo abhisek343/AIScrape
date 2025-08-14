@@ -7,7 +7,7 @@ export const HttpRequestTask = {
   type: TaskType.HTTP_REQUEST,
   label: 'HTTP request',
   icon: (props) => <Globe2Icon className="stroke-blue-400" {...props} />,
-  isEntryPoint: false,
+  isEntryPoint: true,
   credits: 1,
   inputs: [
     { name: 'Method', type: TaskParamType.SELECT, required: true, hideHandle: true, options: [
@@ -26,6 +26,7 @@ export const HttpRequestTask = {
     { name: 'Response body', type: TaskParamType.STRING },
   ] as const,
 } satisfies WorkflowTask;
+
 
 
 

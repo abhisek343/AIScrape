@@ -10,7 +10,15 @@ export default function DeletableEdge(props: EdgeProps) {
 
   return (
     <>
-      <BaseEdge path={edgePath} markerEnd={props.markerEnd} style={props.style} />
+      <BaseEdge 
+        path={edgePath} 
+        markerEnd={props.markerEnd} 
+        style={{ 
+          stroke: '#10b981', 
+          strokeWidth: 3,
+          ...props.style 
+        }} 
+      />
       <EdgeLabelRenderer>
         <div
           style={{

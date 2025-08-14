@@ -29,6 +29,7 @@ import dynamic from 'next/dynamic';
 
 const ChatbotWidget = dynamic(() => import('@/components/chatbot/chatbot-widget').then(m => m.ChatbotWidget), { ssr: false });
 
+// Move outside component to prevent recreation on every render
 const nodeTypes = {
   AIScrapeNode: NodeComponent,
 };
@@ -37,8 +38,13 @@ const edgeTypes = {
   default: DeletableEdge,
 };
 
-const snapGrid: [number, number] = [50, 50];
-const fitViewOptions = { padding: 1 };
+const snapGrid: [number, number] = [25, 25];
+const fitViewOptions = { padding: 0.1, maxZoom: 1.2 };
+
+const defaultEdgeOptions = {
+  style: { stroke: '#10b981', strokeWidth: 3 },
+  type: 'smoothstep',
+};
 
 export default function FlowEditor({ workflow }: { workflow: Workflow }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
@@ -58,7 +64,7 @@ export default function FlowEditor({ workflow }: { workflow: Workflow }) {
         setViewport({ x, y, zoom });
       } else {
         // No saved viewport; auto fit view when nodes exist
-        setTimeout(() => fitView({ padding: 0.2 }), 100);
+        setTimeout(() => fitView({ padding: 0.1, maxZoom: 1 }), 100);
       }
   } catch (error) {
     console.error("Failed to parse workflow definition in FlowEditor:", error);
@@ -151,7 +157,7 @@ export default function FlowEditor({ workflow }: { workflow: Workflow }) {
   // Ensure we fit to nodes whenever they change (robust against missing viewport)
   useEffect(() => {
     if (nodes.length > 0) {
-      const id = setTimeout(() => fitView({ padding: 0.2 }), 200);
+      const id = setTimeout(() => fitView({ padding: 0.1, maxZoom: 1 }), 200);
       return () => clearTimeout(id);
     }
   }, [nodes.length, edges.length, fitView]);
@@ -165,17 +171,19 @@ export default function FlowEditor({ workflow }: { workflow: Workflow }) {
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        defaultEdgeOptions={defaultEdgeOptions}
         snapToGrid
         snapGrid={snapGrid}
         fitView
         fitViewOptions={fitViewOptions}
+        defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
         onDragOver={onDragOver}
         onDrop={onDrop}
         onConnect={onConnect}
         isValidConnection={isValidConnection}
       >
-        <Controls position="top-left" fitViewOptions={fitViewOptions} />
-        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+        <Controls position="top-left" fitViewOptions={fitViewOptions} showZoom={true} showFitView={true} showInteractive={true} />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={2} />
       </ReactFlow>
       <ChatbotWidget workflowId={workflow.id} />
     </main>

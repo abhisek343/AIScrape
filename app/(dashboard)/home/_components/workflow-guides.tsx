@@ -375,7 +375,25 @@ export default function WorkflowGuides() {
             continue; 
           }
 
-          const k = addNode(type);
+          // Add some default inputs for common nodes to make them executable
+          const defaultInputs: Record<string, string> = {};
+          if (type === 'LAUNCH_BROWSER') {
+            defaultInputs['Website Url'] = 'https://example.com';
+          } else if (type === 'WAIT_FOR_ELEMENT') {
+            defaultInputs['Selector'] = '.content';
+            defaultInputs['Visibility'] = 'visible';
+          } else if (type === 'EXTRACT_LIST') {
+            defaultInputs['Selector'] = '.item';
+          } else if (type === 'EXTRACT_ATTRIBUTES') {
+            defaultInputs['Selector'] = 'a';
+            defaultInputs['Attribute'] = 'href';
+          } else if (type === 'EXTRACT_TEXT_FROM_ELEMENT') {
+            defaultInputs['Selector'] = 'h1';
+          } else if (type === 'DELIVER_VIA_WEBHOOK') {
+            defaultInputs['Target URL'] = 'https://webhook.site/your-webhook-url';
+          }
+
+          const k = addNode(type, defaultInputs);
           if (connectInput && lastKey) {
             connectFromLast(k, connectInput);
           }
@@ -383,9 +401,27 @@ export default function WorkflowGuides() {
           lastOutput = newLastOutput;
         }
 
-        // Ensure a starting node exists
-        if (!nodes.length) {
-          nodes.push({ key: 'A', type: 'LAUNCH_BROWSER' });
+        // Ensure a starting node exists.
+        // If there's no LAUNCH_BROWSER node but there are nodes that require a browser,
+        // prepend a LAUNCH_BROWSER and connect it to the first browser-dependent node.
+        const hasLaunch = nodes.some(n => n.type === 'LAUNCH_BROWSER');
+        if (!hasLaunch) {
+          // Determine if any node expects a 'Web page' input as entry
+          const browserNeedingNodeIndex = nodes.findIndex(n => {
+            const def = TaskRegistry[n.type as keyof typeof TaskRegistry];
+            return !!def?.inputs?.some(i => i.name === 'Web page');
+          });
+
+          if (browserNeedingNodeIndex >= 0) {
+            // Create a unique key for the new Launch Browser node
+            const launchKey = String.fromCharCode(keyCode);
+            keyCode++;
+            nodes.push({ key: launchKey, type: 'LAUNCH_BROWSER', inputs: { 'Website Url': 'https://example.com' } });
+
+            const targetKey = nodes[browserNeedingNodeIndex].key;
+            // Connect launch to the first browser-dependent node
+            edges.unshift({ from: { node: launchKey, output: 'Web page' }, to: { node: targetKey, input: 'Web page' } });
+          }
         }
 
         return { workflow: { name: title, description: 'Starter created from guide', nodes, edges } };
@@ -463,6 +499,7 @@ export default function WorkflowGuides() {
     </section>
   );
 }
+
 
 
 
