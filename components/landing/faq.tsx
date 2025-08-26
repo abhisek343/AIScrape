@@ -10,7 +10,7 @@ const faqs = [
   },
   {
     q: 'Is AIScrape compliant for enterprise use?',
-    a: 'Yes. We offer audit logs, SSO, encryption at rest and in transit, and optional dedicated infrastructure.'
+    a: 'Yes. We support SSO (Okta, Azure AD), audit logs, and encryption in transit and at rest. SOC 2 is in progress.'
   },
   {
     q: 'Do you support rotating proxies and headless browsers?',
@@ -18,7 +18,7 @@ const faqs = [
   },
   {
     q: 'Can I integrate with my stack?',
-    a: 'Use our REST API and webhooks or export directly to your warehouse, queue, or storage.'
+    a: 'Yes. Use our REST API and webhooks; or export to S3, GCS, BigQuery, Postgres, and Kafka.'
   }
 ];
 
@@ -32,7 +32,7 @@ export default function FAQ() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.45 }}
-            className="text-4xl md:text-5xl font-bold tracking-tight"
+            className="text-4xl md:text-5xl font-extrabold tracking-tight"
           >
             Frequently asked questions
           </motion.h2>

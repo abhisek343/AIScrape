@@ -20,18 +20,22 @@ export const RetrieveDataTask = {
   outputs: [
     {
       name: 'Retrieved Data',
+      type: TaskParamType.STRING,
       helperText: 'The data that was retrieved from storage',
     },
     {
       name: 'Storage Key',
+      type: TaskParamType.STRING,
       helperText: 'The key that was used to retrieve the data',
     },
     {
       name: 'Description',
+      type: TaskParamType.STRING,
       helperText: 'The description of the stored data',
     },
     {
       name: 'Expires At',
+      type: TaskParamType.STRING,
       helperText: 'When the data expires',
     },
   ] as const,

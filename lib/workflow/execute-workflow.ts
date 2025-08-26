@@ -233,7 +233,14 @@ async function executeWorkflowPhase(phase: ExecutionPhase, environment: Environm
     },
   });
 
-  const creditsRequired = TaskRegistry[node.data.type].credits;
+  const taskDefinition = TaskRegistry[node.data.type];
+  if (!taskDefinition) {
+    logCollector.error(`Unknown task type: ${node.data.type}`);
+    await finalizePhase(phase.id, false, {}, logCollector, 0);
+    return { success: false, creditsConsumed: 0 };
+  }
+
+  const creditsRequired = taskDefinition.credits ?? 0;
 
   let success = await decrementCredits(userId, creditsRequired, logCollector);
   const creditsConsumed = success ? creditsRequired : 0;
@@ -418,13 +425,17 @@ async function cleanupEnvironment(environment: Environment) {
   try {
     // Close all pages first
     if (environment.browser) {
-      const pages = await environment.browser.pages();
-      for (const page of pages) {
-        cleanupPromises.push(
-          page.close().catch((err) => 
-            console.error('Cannot close page, reason:', err)
-          )
-        );
+      try {
+        const pages = await environment.browser.pages();
+        for (const page of pages) {
+          cleanupPromises.push(
+            page.close().catch((err) =>
+              console.error('Cannot close page, reason:', err)
+            )
+          );
+        }
+      } catch (err) {
+        console.error('Error getting browser pages:', err);
       }
     }
     

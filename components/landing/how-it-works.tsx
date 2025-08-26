@@ -39,7 +39,7 @@ export default function HowItWorks() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="text-4xl md:text-5xl font-bold tracking-tight text-slate-900 dark:text-white"
+            className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white"
           >
             From idea to production in
             <span className="block bg-gradient-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent">
@@ -53,7 +53,7 @@ export default function HowItWorks() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="mt-4 text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto"
           >
-            Our streamlined process gets you from concept to collecting data faster than any other platform.
+            Build, validate, deploy, and monitor scraping flows with retries, scheduling, and webhooks.
           </motion.p>
         </div>
 

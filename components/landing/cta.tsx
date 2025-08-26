@@ -34,7 +34,7 @@ export default function CTA() {
               Start building reliable web data pipelines today
             </h3>
             <p className="mt-3 text-emerald-50/90 max-w-2xl mx-auto">
-              Create your first workflow in minutes. Scale to millions of pages with enterprise‑grade reliability.
+              Build your first workflow in minutes. Schedule runs and stream results to your stack.
             </p>
             <div className="mt-6 flex justify-center">
               <Link href="/sign-up">

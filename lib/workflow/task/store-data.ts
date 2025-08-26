@@ -38,10 +38,12 @@ export const StoreDataTask = {
   outputs: [
     {
       name: 'Storage Key',
+      type: TaskParamType.STRING,
       helperText: 'The key used to store the data',
     },
     {
       name: 'Stored Data',
+      type: TaskParamType.STRING,
       helperText: 'The data that was stored',
     },
   ] as const,

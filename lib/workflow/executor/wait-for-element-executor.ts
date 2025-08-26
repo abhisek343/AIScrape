@@ -29,11 +29,12 @@ function validateWaitForElementInputs(selector: string, visibility: string): { v
 export async function WaitForElementExecutor(
   environment: ExecutionEnvironment<typeof WaitForElementTask>
 ): Promise<boolean> {
+  const selector = environment.getInput('Selector');
+  const visibility = environment.getInput('Visibility');
+
   try {
-    const selector = environment.getInput('Selector');
-    const visibility = environment.getInput('Visibility');
     const page = environment.getPage();
-    
+
     if (!page) {
       environment.log.error('No page found');
       return false;
@@ -59,18 +60,20 @@ export async function WaitForElementExecutor(
     environment.log.info(`Waiting for element '${selector}' to become ${visibility}`);
 
     // Wait for element with timeout
-    await page.waitForSelector(selector, { 
-      visible: visibility === 'visible', 
+    await page.waitForSelector(selector, {
+      visible: visibility === 'visible',
       hidden: visibility === 'hidden',
       timeout: DEFAULT_TIMEOUT
     });
-    
+
     environment.log.info(`Element ${selector} became ${visibility}`);
     return true;
-    
+
   } catch (error: any) {
+    const selectorStr = selector || 'unknown';
+    const visibilityStr = visibility || 'unknown';
     if (error.name === 'TimeoutError') {
-      environment.log.error(`Timeout waiting for element '${selector}' to become ${visibility}`);
+      environment.log.error(`Timeout waiting for element '${selectorStr}' to become ${visibilityStr}`);
     } else {
       environment.log.error(`Wait for element failed: ${error.message}`);
     }

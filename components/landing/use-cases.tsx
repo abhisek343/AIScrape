@@ -62,7 +62,7 @@ export default function UseCases() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="text-4xl md:text-5xl font-bold tracking-tight"
+            className="text-4xl md:text-5xl font-extrabold tracking-tight"
           >
             Purpose‑built for your team
           </motion.h2>
@@ -73,7 +73,7 @@ export default function UseCases() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="mt-4 text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto"
           >
-            Ship reliable data pipelines with workflow templates tailored to common use cases.
+            Each use case includes a ready‑to‑run template and live example you can clone.
           </motion.p>
         </div>
 

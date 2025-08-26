@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react'; // Added useState
+import { useRef, useState } from 'react'; // useRef for auto-layout hook
 import { Workflow } from '@prisma/client';
 import { ReactFlowProvider } from '@xyflow/react';
 
@@ -13,6 +13,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet'; // Added Sheet comp
 import { WorkflowStatus } from '@/types/workflow';
 
 export default function Editor({ workflow }: { workflow: Workflow }) {
+  const autoLayout = useRef<null | (() => void)>(null);
   const [isTaskMenuOpenMobile, setIsTaskMenuOpenMobile] = useState(false);
 
   return (
@@ -24,7 +25,12 @@ export default function Editor({ workflow }: { workflow: Workflow }) {
             subtitle={workflow.name}
             workflowId={workflow.id}
             isPublished={workflow.status === WorkflowStatus.PUBLISHED}
-            onToggleTaskMenuMobile={() => setIsTaskMenuOpenMobile((prev) => !prev)} // Added prop
+            onToggleTaskMenuMobile={() => setIsTaskMenuOpenMobile((prev) => !prev)}
+            onAutoLayout={() => {
+              if (autoLayout.current) {
+                autoLayout.current();
+              }
+            }}
           />
           <section className="flex h-full overflow-hidden flex-col md:flex-row"> {/* Stack on mobile, row on desktop */}
             {/* Desktop Task Menu */}
@@ -42,7 +48,7 @@ export default function Editor({ workflow }: { workflow: Workflow }) {
             </div>
             
             <div className="flex-1 h-full overflow-auto" style={{ height: '100%', width: '100%' }}> {/* Wrapper for FlowEditor to take remaining space and scroll */}
-              <FlowEditor workflow={workflow} />
+              <FlowEditor workflow={workflow} registerAutoLayout={(fn) => (autoLayout.current = fn as any)} />
             </div>
           </section>
         </div>

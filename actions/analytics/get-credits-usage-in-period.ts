@@ -47,13 +47,17 @@ export async function getCreditsUsageInPeriod(period: Period) {
       return acc;
     }, {} as Stats);
 
-  executionPhases.forEach((phase) => {
-    const date = format(phase.startedAt!, dateFormat);
+  executionPhases.forEach((phase: typeof executionPhases[0]) => {
+    if (!phase.startedAt) return; // Skip phases without start time
+
+    const date = format(phase.startedAt, dateFormat);
+    const credits = Math.max(0, phase.creditsConsumed || 0); // Ensure non-negative credits
+
     if (phase.status === COMPLETED) {
-      stats[date].success += phase.creditsConsumed || 0;
+      stats[date].success += credits;
     }
     if (phase.status === FAILED) {
-      stats[date].failed += phase.creditsConsumed || 0;
+      stats[date].failed += credits;
     }
   });
 

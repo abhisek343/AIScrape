@@ -44,8 +44,8 @@ export async function getStatsCardsValues(period: Period) {
     phaseExecutions: 0,
   };
 
-  stats.creditsConsumed = executions.reduce((sum, execution) => sum + execution.creditsConsumed, 0);
-  stats.phaseExecutions = executions.reduce((sum, execution) => sum + execution.phases.length, 0);
+  stats.creditsConsumed = executions.reduce((sum: number, execution: typeof executions[0]) => sum + (execution.creditsConsumed || 0), 0);
+  stats.phaseExecutions = executions.reduce((sum: number, execution: typeof executions[0]) => sum + execution.phases.length, 0);
 
   return stats;
 }

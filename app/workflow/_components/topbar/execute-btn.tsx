@@ -4,6 +4,7 @@ import { PlayIcon } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { useCallback } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,7 @@ export default function ExecuteBtn({ workflowId, isMobile = false }: ExecuteBtnP
     },
   });
 
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     // Get the current flow state FIRST, before validation might trigger re-renders affecting it.
     const currentFlowStateForExecution = toObject();
 
@@ -47,7 +48,7 @@ export default function ExecuteBtn({ workflowId, isMobile = false }: ExecuteBtnP
       workflowId: workflowId,
       currentFlowDefinition: JSON.stringify(currentFlowStateForExecution),
     });
-  };
+  }, [toObject, generate, mutation, workflowId]);
 
   if (isMobile) {
     return (

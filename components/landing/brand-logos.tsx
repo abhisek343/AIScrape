@@ -2,13 +2,8 @@
 
 import { motion } from 'framer-motion';
 
-const logos = [
-  { name: 'Acme', width: 96 },
-  { name: 'Globex', width: 96 },
-  { name: 'Umbrella', width: 96 },
-  { name: 'Soylent', width: 96 },
-  { name: 'Initech', width: 96 },
-  { name: 'Hooli', width: 96 },
+const logos: { name: string; width: number; href?: string }[] = [
+  // Replace with real customers when available
 ];
 
 export default function BrandLogos() {
@@ -36,7 +31,7 @@ export default function BrandLogos() {
             Trusted Globally
           </motion.div>
           
-          <motion.p
+          {logos.length > 0 && (<motion.p
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -44,7 +39,7 @@ export default function BrandLogos() {
             className="text-lg font-semibold tracking-wide text-slate-600 dark:text-slate-300"
           >
             Trusted by data-driven teams worldwide
-          </motion.p>
+          </motion.p>)}
         </div>
         
         <div className="relative overflow-hidden">
@@ -52,25 +47,29 @@ export default function BrandLogos() {
           <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-white dark:from-slate-900 to-transparent z-10" />
           <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-white dark:from-slate-900 to-transparent z-10" />
           
-          <motion.div
-            className="flex items-center gap-12 md:gap-16 whitespace-nowrap"
-            animate={{ x: ['0%', '-50%'] }}
-            transition={{ duration: 30, ease: 'linear', repeat: Infinity }}
-          >
-            {all.map((logo, idx) => (
-              <motion.div 
-                key={`${logo.name}-${idx}`} 
-                className="flex items-center justify-center group relative"
-                whileHover={{ scale: 1.1 }}
-                transition={{ duration: 0.2 }}
-              >
-                <span className="text-lg md:text-xl font-semibold tracking-wider text-slate-400 dark:text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors duration-300 select-none">
-                  {logo.name}
-                </span>
-                <span className="pointer-events-none absolute -bottom-2 left-1/2 h-px w-0 group-hover:w-8 -translate-x-1/2 bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-300" />
-              </motion.div>
-            ))}
-          </motion.div>
+          {logos.length > 0 ? (
+            <motion.div
+              className="flex items-center gap-12 md:gap-16 whitespace-nowrap"
+              animate={{ x: ['0%', '-50%'] }}
+              transition={{ duration: 30, ease: 'linear', repeat: Infinity }}
+            >
+              {all.map((logo, idx) => (
+                <motion.div 
+                  key={`${logo.name}-${idx}`} 
+                  className="flex items-center justify-center group relative"
+                  whileHover={{ scale: 1.1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <span className="text-lg md:text-xl font-semibold tracking-wider text-slate-400 dark:text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors duration-300 select-none">
+                    {logo.name}
+                  </span>
+                  <span className="pointer-events-none absolute -bottom-2 left-1/2 h-px w-0 group-hover:w-8 -translate-x-1/2 bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-300" />
+                </motion.div>
+              ))}
+            </motion.div>
+          ) : (
+            <div className="text-center text-sm text-muted-foreground py-8">Add your customer logos here</div>
+          )}
         </div>
       </div>
     </section>

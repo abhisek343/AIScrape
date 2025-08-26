@@ -16,11 +16,6 @@ import { AiAutomationSpec, buildDefinitionFromAiSpec } from '@/lib/workflow/ai-a
 // Initialize Google Generative AI
 if (!process.env.GOOGLE_API_KEY) {
   console.error("FATAL: GOOGLE_API_KEY is not set in .env. Chatbot API cannot initialize.");
-  // This error will be thrown when the module is loaded if the key is missing.
-  // For a per-request check, it would need to be inside POST, but genAI is module-scoped.
-  // Better to ensure it's set, or the app shouldn't start/deploy properly.
-  // For now, let this be a module-load time check.
-  // throw new Error("Server configuration error: Missing Google API Key for Chatbot.");
 }
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || ""); // Provide default empty string if null/undefined to satisfy constructor, error will be caught by SDK if key is invalid/empty during API call.
@@ -72,7 +67,7 @@ async function waitForExecutionAndSummarize(executionId: string, timeoutMs = 90_
       exec.status === WorkflowExecutionStatus.COMPLETED ||
       exec.status === WorkflowExecutionStatus.FAILED
     ) {
-      const outputs = (exec.phases || []).map((p, idx) => {
+      const outputs = (exec.phases || []).map((p: any, idx: number) => {
         let out: Record<string, any> = {};
         try {
           out = p.outputs ? JSON.parse(p.outputs) : {};
@@ -85,7 +80,7 @@ async function waitForExecutionAndSummarize(executionId: string, timeoutMs = 90_
         : '(no outputs)';
       const overall = `Run ${String(exec.status).toLowerCase()}. Credits consumed: ${exec.creditsConsumed}.`;
       const phases = outputs
-        .map((o) => `Phase ${o.phase} - ${o.name}: ${JSON.stringify(o.outputs) || '{}'}`)
+        .map((o: any) => `Phase ${o.phase} - ${o.name}: ${JSON.stringify(o.outputs) || '{}'}`)
         .join('\n');
       return { status: exec.status, summary: `${overall}\nLast phase outputs: ${lastOutSummary}\n\nAll phase outputs:\n${phases}` } as const;
     }
@@ -332,7 +327,7 @@ Maintain a helpful, safe, and project-focused conversation.
         },
       ],
     };
-    if (String(process.env.GEMINI_ENABLE_GOOGLE_SEARCH).toLowerCase() === 'true') {
+    if (process.env.GEMINI_ENABLE_GOOGLE_SEARCH?.toLowerCase() === 'true') {
       // Cast to any to avoid type mismatches across SDK versions
       modelOptions.tools = [{ googleSearch: {} }];
     }
@@ -343,7 +338,7 @@ Maintain a helpful, safe, and project-focused conversation.
       contents: preparedContents,
       // generationConfig: { maxOutputTokens: 2048 },
       // Optionally pass tool configuration if search is enabled (cast to any for forward-compat)
-      ...(String(process.env.GEMINI_ENABLE_GOOGLE_SEARCH).toLowerCase() === 'true'
+      ...(process.env.GEMINI_ENABLE_GOOGLE_SEARCH?.toLowerCase() === 'true'
         ? ({ toolConfig: { googleSearch: { disableAttribution: false } } as any })
         : {}),
     });
@@ -383,7 +378,7 @@ Maintain a helpful, safe, and project-focused conversation.
             }
           }
         } catch (err: any) {
-          automationSummary = `Failed to process AI automation spec: ${err?.message || 'Unknown error'}`;
+          automationSummary = `Failed to process AI automation spec: ${err?.message || err?.toString() || 'Unknown error'}`;
         }
       }
     }
@@ -400,10 +395,10 @@ Maintain a helpful, safe, and project-focused conversation.
     }
     else if (message.toLowerCase().includes('list workflows') || text.toLowerCase().includes("call `getworkflowsforuser()`")) {
       const workflows = await getWorkflowsForUser();
-      text = `Here are your existing workflows:\n${workflows.map(w => `- ${w.name} (ID: ${w.id})`).join('\n') || 'No workflows found.'}`;
+      text = `Here are your existing workflows:\n${workflows.map((w: any) => `- ${w.name} (ID: ${w.id})`).join('\n') || 'No workflows found.'}`;
     }
     else if (message.toLowerCase().includes('run workflow')) {
-      const idMatch = message.match(/run workflow with id\s+([a-zA-Z0-9]+)/i); // Fixed regex: a-zA-Z
+      const idMatch = message.match(/run workflow with id\s+([a-zA-Z0-9_-]+)/i); // Match CUID format with hyphens and underscores
       const nameMatch = message.match(/run workflow named\s+"([^"]+)"/i);
 
       let workflowIdToRun: string | null = null;
@@ -412,7 +407,7 @@ Maintain a helpful, safe, and project-focused conversation.
         workflowIdToRun = (idMatch[1] !== undefined) ? (idMatch[1] as string) : null; // Assert here
       } else if (nameMatch) {
         const workflows = await getWorkflowsForUser(); // No userId argument needed
-        const foundWorkflow = workflows.find(w => w.name.toLowerCase() === nameMatch[1].toLowerCase());
+        const foundWorkflow = workflows.find((w: any) => w.name.toLowerCase() === nameMatch[1].toLowerCase());
         workflowIdToRun = (foundWorkflow && foundWorkflow.id !== undefined) ? (foundWorkflow.id as string) : null; // Assert here
       }
 

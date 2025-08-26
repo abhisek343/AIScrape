@@ -3,15 +3,12 @@
 import { motion } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 
-const code = `POST /api/workflows/execute HTTP/1.1
-Authorization: Bearer <token>
+const code = `POST /api/workflows/slash HTTP/1.1
+Authorization: Bearer <user session>
 Content-Type: application/json
 
 {
-  "workflowId": "extract-products",
-  "inputs": {
-    "url": "https://example.com/category/shoes"
-  }
+  "command": "extract links from https://example.com"
 }`.trim();
 
 export default function CodePreview() {

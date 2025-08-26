@@ -18,7 +18,7 @@ export default function Header() {
     { name: 'Showcase', href: '#showcase' },
     { name: 'Use Cases', href: '#use-cases' },
     { name: 'How It Works', href: '#how-it-works' },
-    { name: 'Blog', href: '/blog' },
+    { name: 'Blog', href: '/blog' }, // ensure route exists or remove
   ];
 
   return (
@@ -38,7 +38,8 @@ export default function Header() {
             <Logo iconSize={32} />
           </motion.div>
 
-          <nav className="hidden md:flex items-center space-x-1">
+         {/* Desktop nav */}
+         <nav className="hidden md:flex items-center space-x-1" aria-label="Primary">
             {navigation.map((item, index) => (
               <motion.div
                 key={item.name}
@@ -48,7 +49,7 @@ export default function Header() {
               >
                 <Link
                   href={item.href}
-                  className="relative px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all duration-300 rounded-lg hover:bg-emerald-50/70 dark:hover:bg-emerald-950/30 group"
+                  className="relative px-4 py-2 text-sm font-medium tracking-normal text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors duration-200 rounded-lg hover:bg-emerald-50/70 dark:hover:bg-emerald-950/30 group"
                 >
                   {item.name}
                   <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-300 group-hover:w-8 group-hover:left-1/2 group-hover:-translate-x-1/2"></span>
@@ -118,6 +119,8 @@ export default function Header() {
             <Button
               variant="ghost"
               size="sm"
+              aria-expanded={isMenuOpen}
+              aria-controls="mobile-menu"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               <span className="sr-only">Toggle menu</span>
@@ -126,14 +129,16 @@ export default function Header() {
           </div>
         </div>
 
+        {/* Mobile menu */}
         {isMenuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             transition={{ duration: 0.2 }}
+            id="mobile-menu"
             className="md:hidden border-t"
           >
-            <div className="px-2 pt-2 pb-3 space-y-1">
+            <div className="px-2 pt-2 pb-3 space-y-1" role="menu" aria-label="Mobile">
               {navigation.map((item) => (
                 <Link
                   key={item.name}

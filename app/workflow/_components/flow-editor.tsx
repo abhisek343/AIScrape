@@ -10,6 +10,7 @@ import {
   Controls,
   Edge,
   getOutgoers,
+  getIncomers,
   ReactFlow,
   useEdgesState,
   useNodesState,
@@ -46,10 +47,55 @@ const defaultEdgeOptions = {
   type: 'smoothstep',
 };
 
-export default function FlowEditor({ workflow }: { workflow: Workflow }) {
+export default function FlowEditor({ workflow, registerAutoLayout }: { workflow: Workflow; registerAutoLayout?: (fn: () => void) => void }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { setViewport, screenToFlowPosition, updateNodeData, fitView } = useReactFlow();
+
+  // Register auto layout function with parent
+  useEffect(() => {
+    if (!registerAutoLayout) return;
+    const fn = () => {
+      const layerGapX = 280;
+      const layerGapY = 160;
+      const ns = nodes;
+      const es = edges;
+      const indegree = new Map(ns.map(n => [n.id, 0]));
+      es.forEach(e => indegree.set(e.target, (indegree.get(e.target) || 0) + 1));
+      const roots = ns.filter(n => (indegree.get(n.id) || 0) === 0).map(n => n.id);
+      const layer = new Map<string, number>();
+      const q: string[] = [...roots];
+      roots.forEach(id => layer.set(id, 0));
+      while (q.length) {
+        const id = q.shift()!;
+        const l = layer.get(id)!;
+        es.filter(e => e.source === id).forEach(e => {
+          const nl = Math.max(l + 1, layer.get(e.target) ?? 0);
+          if (!layer.has(e.target) || nl > (layer.get(e.target) ?? 0)) {
+            layer.set(e.target, nl);
+            q.push(e.target);
+          }
+        });
+      }
+      const levels: Record<number, string[]> = {};
+      ns.forEach(n => {
+        const lv = layer.get(n.id) ?? 0;
+        levels[lv] = levels[lv] || [];
+        levels[lv].push(n.id);
+      });
+      let y = 0;
+      Object.keys(levels).sort((a,b)=>Number(a)-Number(b)).forEach(lv => {
+        const ids = levels[Number(lv)];
+        const startX = -(ids.length - 1) * (layerGapX / 2);
+        ids.forEach((id, idx) => {
+          setNodes(nds => nds.map(nn => nn.id === id ? { ...nn, position: { x: startX + idx * layerGapX, y } } : nn));
+        });
+        y += layerGapY;
+      });
+      fitView({ padding: 0.2, maxZoom: 1 });
+    };
+    registerAutoLayout(fn);
+  }, [registerAutoLayout, nodes, edges, setNodes, fitView]);
 
   useEffect(() => {
     try {
@@ -70,6 +116,12 @@ export default function FlowEditor({ workflow }: { workflow: Workflow }) {
     console.error("Failed to parse workflow definition in FlowEditor:", error);
   }
 }, [workflow.definition, setEdges, setNodes, setViewport, fitView]);
+
+  const onNodeDrag = useCallback((event: React.MouseEvent, nodeId: string) => {
+    // When dragging a node that has edges, auto-reposition connected edges' labels and encourage smoother drag
+    // (React Flow handles edge paths automatically; this is just to force updates).
+    setEdges((eds) => eds.map((e) => ({ ...e })));
+  }, [setEdges]);
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -106,8 +158,22 @@ export default function FlowEditor({ workflow }: { workflow: Workflow }) {
           [connection.targetHandle]: '',
         },
       });
+
+      // On connect, attempt minimal auto-layout: nudge target below source if overlapping
+      const source = nodes.find((n) => n.id === connection.source);
+      const target = nodes.find((n) => n.id === connection.target);
+      if (source && target) {
+        setNodes((nds) => nds.map((n) => {
+          if (n.id === target.id) {
+            const dx = 0;
+            const dy = (target.position.y <= source.position.y + 80) ? (source.position.y + 120 - target.position.y) : 0;
+            return dy ? { ...n, position: { x: n.position.x + dx, y: n.position.y + dy } } : n;
+          }
+          return n;
+        }));
+      }
     },
-    [setEdges, updateNodeData, nodes]
+    [setEdges, updateNodeData, nodes, setNodes]
   );
 
   const isValidConnection = useCallback(
@@ -181,7 +247,8 @@ export default function FlowEditor({ workflow }: { workflow: Workflow }) {
         onDrop={onDrop}
         onConnect={onConnect}
         isValidConnection={isValidConnection}
-      >
+       onNodeDrag={onNodeDrag}
+    >
         <Controls position="top-left" fitViewOptions={fitViewOptions} showZoom={true} showFitView={true} showInteractive={true} />
         <Background variant={BackgroundVariant.Dots} gap={20} size={2} />
       </ReactFlow>

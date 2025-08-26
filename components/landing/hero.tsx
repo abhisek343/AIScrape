@@ -229,7 +229,7 @@ export default function Hero() {
             <div className="flex items-center justify-center w-5 h-5 bg-emerald-500/20 rounded-full">
               <CheckCircle className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
             </div>
-            Trusted by 2,500+ companies worldwide
+            Chromium automation • Scheduling • Webhooks
             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
           </motion.div>
 
@@ -254,13 +254,13 @@ export default function Hero() {
               initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.25, 0, 1] }}
-              className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight md:tracking-tighter text-slate-900 dark:text-white leading-[0.95] mb-6"
+              className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-slate-900 dark:text-white leading-[0.95] mb-6"
             >
               <span className="block">
-            Enterprise web scraping
+            Visual web data workflows
               </span>
               <span className="block bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 bg-clip-text text-transparent font-extrabold relative">
-              that actually works
+              with built‑in browser automation
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: [0, 0.3, 0], scale: [0.8, 1.2, 0.8] }}
@@ -275,10 +275,10 @@ export default function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4, ease: [0.25, 0.25, 0, 1] }}
-            className="text-lg md:text-xl lg:text-2xl text-slate-600 dark:text-slate-300 max-w-4xl mx-auto leading-relaxed font-light tracking-wide"
+            className="text-lg md:text-xl lg:text-2xl text-slate-600 dark:text-slate-300 max-w-4xl mx-auto leading-relaxed font-normal tracking-normal"
           >
-            Build <span className="font-semibold text-emerald-600 dark:text-emerald-400">production-ready data pipelines</span> with our visual workflow builder. 
-            Scale from thousands to millions of pages with <span className="font-semibold text-emerald-600 dark:text-emerald-400">enterprise-grade reliability</span>.
+            Design, run, and monitor scraping flows with a visual editor, retries, and audit logs.
+            Trigger via API or schedule with cron. Stream results through webhooks.
           </motion.p>
 
           <motion.div

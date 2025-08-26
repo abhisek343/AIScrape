@@ -38,6 +38,7 @@ export const DisplayDataTask = {
   outputs: [
     {
       name: 'Displayed Data',
+      type: TaskParamType.STRING,
       helperText: 'The formatted data that was displayed',
     },
   ] as const,

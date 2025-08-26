@@ -18,6 +18,7 @@ import UnpublishBtn from '@/app/workflow/_components/topbar/unpublish-btn';
 import NavigationTabs from '@/app/workflow/_components/topbar/navigation-tabs';
 
 interface Props {
+  onAutoLayout?: () => void;
   title: string;
   subtitle?: string;
   workflowId: string;
@@ -61,6 +62,26 @@ export default function Topbar({
       </div>
       <NavigationTabs workflowId={workflowId} />
       <div className="flex gap-1 flex-1 justify-end">
+        {/* Auto Layout button (desktop) */}
+        {onAutoLayout && (
+          <div className="hidden sm:flex mr-2">
+            <TooltipWrapper content="Auto layout">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  try {
+                    onAutoLayout?.();
+                  } catch (error) {
+                    console.error('Error in onAutoLayout:', error);
+                  }
+                }}
+              >
+                Layout
+              </Button>
+            </TooltipWrapper>
+          </div>
+        )}
         {hideButtons === false && (
           <>
             {/* Desktop Buttons */}
