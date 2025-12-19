@@ -34,6 +34,7 @@ export default function Topbar({
   hideButtons = false,
   isPublished = false,
   onToggleTaskMenuMobile,
+  onAutoLayout,
 }: Props) {
   const router = useRouter();
 

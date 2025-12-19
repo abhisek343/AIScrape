@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 
 import { getCredentialsForUser } from '@/actions/credentials/get-credentials-for-user';
 import { ParamProps } from '@/types/appnode';
+import { Credential } from '@prisma/client';
 
 export default function CredentialsParam({ param, value, updateNodeParamValue }: ParamProps) {
   const id = useId();
@@ -38,7 +39,7 @@ export default function CredentialsParam({ param, value, updateNodeParamValue }:
         <SelectContent>
           <SelectGroup>
             <SelectLabel>Credentials</SelectLabel>
-            {query.data?.map((credential) => (
+            {query.data?.map((credential: Credential) => (
               <SelectItem key={credential.id} value={credential.id}>
                 {credential.name}
               </SelectItem>

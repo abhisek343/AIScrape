@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 
 import prisma from '@/lib/prisma';
+import { safeJsonParse } from '@/lib/safe-json';
 import { flowToExecutionPlan } from '@/lib/workflow/execution-plan';
 import { calculateWorkflowCost } from '@/lib/workflow/helpers';
 import { WorkflowStatus } from '@/types/workflow';
@@ -30,7 +31,11 @@ export async function publishWorkflow({ id, flowDefinition }: { id: string; flow
     throw new Error('workflow is not a draft');
   }
 
-  const flow = JSON.parse(flowDefinition);
+  const parseResult = safeJsonParse(flowDefinition, { maxSize: 5 * 1024 * 1024, maxDepth: 20 });
+  if (!parseResult.success) {
+    throw new Error(`Invalid flow definition: ${parseResult.error}`);
+  }
+  const flow = parseResult.data;
   const result = flowToExecutionPlan(flow.nodes, flow.edges);
 
   if (result.error) {

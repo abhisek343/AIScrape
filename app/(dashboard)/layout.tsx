@@ -14,7 +14,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="flex h-screen">
       <DesktopSidebar />
       <div className="flex flex-col flex-1 min-h-screen">
-        <header className="flex items-center justify-between px-6 py-4 h-[50px] container">
+        <header className="flex items-center justify-between px-4 sm:px-6 py-4 h-[50px] container">
           <MobileSidebar />
           <BreadcrumbHeader />
           <DashboardHeaderClient />

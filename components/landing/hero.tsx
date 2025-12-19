@@ -15,7 +15,7 @@ export default function Hero() {
       <div className="absolute inset-0 bg-gradient-to-tr from-emerald-600/5 via-transparent to-emerald-400/10" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,theme(colors.emerald.500/0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_20%_50%,theme(colors.emerald.400/0.15),transparent_50%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,theme(colors.emerald.400/0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_80%_20%,theme(colors.emerald.500/0.1),transparent_50%)]" />
-      
+
       {/* Beautiful Floating Orb System */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Large Premium Orbs */}
@@ -31,15 +31,15 @@ export default function Hero() {
             className={`absolute ${orb.size} transform-gpu`}
             style={{ left: orb.x, top: orb.y }}
             initial={{ opacity: 0, scale: 0 }}
-            animate={{ 
+            animate={{
               opacity: [0.4, 0.7, 0.4],
               scale: [0.8, 1.1, 0.8],
               y: [0, -30, 0],
               x: [0, 15, 0],
             }}
-            transition={{ 
-              duration: 8, 
-              repeat: Infinity, 
+            transition={{
+              duration: 8,
+              repeat: Infinity,
               delay: orb.delay,
               ease: "easeInOut"
             }}
@@ -47,17 +47,17 @@ export default function Hero() {
             <div className="relative w-full h-full">
               {/* Outer glow */}
               <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/30 to-emerald-300/30 rounded-full blur-xl" />
-              
+
               {/* Main orb */}
               <div className="absolute inset-2 bg-gradient-to-br from-emerald-200/80 via-emerald-300/60 to-emerald-400/40 dark:from-emerald-800/60 dark:via-emerald-700/40 dark:to-emerald-600/30 rounded-full backdrop-blur-sm border border-emerald-300/50 dark:border-emerald-700/50">
-                
+
                 {/* Inner highlight */}
                 <div className="absolute inset-1 bg-gradient-to-br from-white/60 to-transparent dark:from-emerald-100/20 rounded-full" />
-                
+
                 {/* Center spark */}
                 <motion.div
                   className="absolute top-1/2 left-1/2 w-2 h-2 bg-emerald-400 rounded-full transform -translate-x-1/2 -translate-y-1/2"
-                  animate={{ 
+                  animate={{
                     scale: [1, 1.5, 1],
                     opacity: [0.8, 1, 0.8]
                   }}
@@ -67,7 +67,7 @@ export default function Hero() {
             </div>
           </motion.div>
         ))}
-        
+
         {/* Medium Floating Elements */}
         {[
           { x: '12%', y: '25%', duration: 8, delay: 1, xMove: 15 },
@@ -91,21 +91,21 @@ export default function Hero() {
               top: particle.y,
             }}
             initial={{ opacity: 0, scale: 0 }}
-            animate={{ 
+            animate={{
               opacity: [0, 0.8, 0],
               scale: [0, 1, 0],
               y: [0, -60, -120],
               x: [0, particle.xMove],
             }}
-            transition={{ 
-              duration: particle.duration, 
-              repeat: Infinity, 
+            transition={{
+              duration: particle.duration,
+              repeat: Infinity,
               delay: particle.delay,
               ease: "easeOut"
             }}
           />
         ))}
-        
+
         {/* Small Sparkle Particles */}
         {[
           { x: '8%', y: '20%', duration: 3.2, delay: 1.5 },
@@ -137,19 +137,19 @@ export default function Hero() {
               top: sparkle.y,
             }}
             initial={{ opacity: 0 }}
-            animate={{ 
+            animate={{
               opacity: [0, 1, 0],
               scale: [0, 1.5, 0],
             }}
-            transition={{ 
-              duration: sparkle.duration, 
-              repeat: Infinity, 
+            transition={{
+              duration: sparkle.duration,
+              repeat: Infinity,
               delay: sparkle.delay,
               ease: "easeInOut"
             }}
           />
         ))}
-        
+
         {/* Flowing Wave Lines */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-30">
           <defs>
@@ -159,20 +159,20 @@ export default function Hero() {
               <stop offset="100%" style={{ stopColor: '#6ee7b7', stopOpacity: 0 }} />
             </linearGradient>
           </defs>
-          
+
           {/* Flowing wave paths */}
           {[25, 45, 65].map((y, index) => (
             <motion.path
               key={index}
-              d={`M0,${y} Q25,${y-10} 50,${y} T100,${y}`}
+              d={`M0,${y} Q25,${y - 10} 50,${y} T100,${y}`}
               stroke="url(#waveGradient)"
               strokeWidth="0.5"
               fill="none"
               initial={{ pathLength: 0 }}
               animate={{ pathLength: [0, 1, 0] }}
-              transition={{ 
-                duration: 4, 
-                repeat: Infinity, 
+              transition={{
+                duration: 4,
+                repeat: Infinity,
                 delay: index * 1.5,
                 ease: "easeInOut"
               }}
@@ -182,13 +182,13 @@ export default function Hero() {
 
 
       </div>
-      
+
       {/* Enhanced floating orbs with better animations */}
       <motion.div
         aria-hidden
         className="pointer-events-none absolute -top-20 -left-20 h-96 w-96 rounded-full bg-gradient-to-br from-emerald-300/20 to-emerald-600/10 blur-3xl"
-        animate={{ 
-          y: [0, 30, 0], 
+        animate={{
+          y: [0, 30, 0],
           x: [0, 15, 0],
           scale: [1, 1.1, 1],
           opacity: [0.3, 0.5, 0.3]
@@ -198,8 +198,8 @@ export default function Hero() {
       <motion.div
         aria-hidden
         className="pointer-events-none absolute top-10 right-10 h-80 w-80 rounded-full bg-gradient-to-bl from-emerald-200/25 to-emerald-500/15 blur-3xl"
-        animate={{ 
-          y: [0, -25, 0], 
+        animate={{
+          y: [0, -25, 0],
           x: [0, -12, 0],
           scale: [1, 1.15, 1],
           opacity: [0.2, 0.4, 0.2]
@@ -209,14 +209,14 @@ export default function Hero() {
       <motion.div
         aria-hidden
         className="pointer-events-none absolute bottom-20 left-1/3 h-64 w-64 rounded-full bg-gradient-to-tr from-emerald-400/15 to-emerald-300/20 blur-3xl"
-        animate={{ 
-          y: [0, 20, 0], 
+        animate={{
+          y: [0, 20, 0],
           x: [0, 10, 0],
           opacity: [0.1, 0.3, 0.1]
         }}
         transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
       />
-      
+
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="mx-auto max-w-5xl text-center">
           {/* Enhanced Social proof badge */}
@@ -249,25 +249,25 @@ export default function Hero() {
               transition={{ duration: 4, repeat: Infinity, delay: 1 }}
               className="absolute inset-x-0 -top-2 h-8 bg-gradient-to-r from-emerald-600/0 via-emerald-300/40 to-emerald-600/0 blur-2xl"
             />
-            
+
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.25, 0, 1] }}
-              className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-slate-900 dark:text-white leading-[0.95] mb-6"
+              className="text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-slate-900 dark:text-white leading-[0.95] mb-6"
             >
               <span className="block">
-            Visual web data workflows
+                Visual web data workflows
               </span>
               <span className="block bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 bg-clip-text text-transparent font-extrabold relative">
-              with built‑in browser automation
+                with built‑in browser automation
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: [0, 0.3, 0], scale: [0.8, 1.2, 0.8] }}
                   transition={{ duration: 3, repeat: Infinity, delay: 2 }}
                   className="absolute inset-0 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 bg-clip-text text-transparent blur-sm"
                 />
-            </span>
+              </span>
             </motion.h1>
           </div>
 
@@ -309,8 +309,8 @@ export default function Hero() {
               >
                 <Button size="lg" variant="outline" className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 hover:border-emerald-300 dark:hover:border-emerald-700 px-10 py-5 text-lg font-semibold shadow-xl shadow-slate-200/50 dark:shadow-slate-800/50 transition-all duration-300 rounded-xl text-slate-700 dark:text-slate-300">
                   <Play className="mr-3 h-5 w-5" />
-                Watch demo
-              </Button>
+                  Watch demo
+                </Button>
               </motion.div>
             </Link>
           </motion.div>
@@ -342,14 +342,14 @@ export default function Hero() {
               >
                 {/* Gradient overlay on hover */}
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" />
-                
+
                 <div className="relative z-10">
                   <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/60 dark:to-emerald-800/40 rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-emerald-200/30 dark:shadow-emerald-900/30">
                     <stat.icon className="h-8 w-8 text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-300" />
-              </div>
+                  </div>
                   <div className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-2 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-300">{stat.value}</div>
                   <div className="text-slate-600 dark:text-slate-400 font-medium tracking-wide">{stat.label}</div>
-            </div>
+                </div>
               </motion.div>
             ))}
           </motion.div>

@@ -133,7 +133,7 @@ async function finalizeWorkflowExecution(
     // Update workflow status with retry logic for race conditions
     const maxRetries = 3;
     let retryCount = 0;
-    
+
     while (retryCount < maxRetries) {
       try {
         await prisma.workflow.update({
@@ -149,7 +149,7 @@ async function finalizeWorkflowExecution(
         break; // Success, exit retry loop
       } catch (updateError: any) {
         retryCount++;
-        
+
         if (retryCount >= maxRetries) {
           // Log the error but don't fail the entire execution
           console.warn(`Failed to update workflow status after ${maxRetries} retries:`, {
@@ -158,14 +158,14 @@ async function finalizeWorkflowExecution(
             error: updateError.message,
             finalStatus
           });
-          
+
           // Check if this is a genuine race condition (lastRunId mismatch)
           try {
             const currentWorkflow = await prisma.workflow.findUnique({
               where: { id: workflowId },
               select: { lastRunId: true }
             });
-            
+
             if (currentWorkflow?.lastRunId !== executionId) {
               console.info(`Workflow ${workflowId} has newer execution ${currentWorkflow?.lastRunId}, skipping status update for ${executionId}`);
             } else {
@@ -176,7 +176,7 @@ async function finalizeWorkflowExecution(
           }
           break;
         }
-        
+
         // Wait before retry (exponential backoff)
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 100));
       }
@@ -190,7 +190,7 @@ async function finalizeWorkflowExecution(
 async function executeWorkflowPhase(phase: ExecutionPhase, environment: Environment, edges: Edge[], userId: string) {
   const logCollector = createLogCollector();
   const startedAt = new Date();
-  
+
   // Safely parse phase node
   const nodeParseResult = safeJsonParse(phase.node, {
     maxSize: 1024 * 1024, // 1MB limit for individual nodes
@@ -366,62 +366,59 @@ function createExecutionEnvironment(
 async function decrementCredits(userId: string, amount: number, logCollector: LogCollector) {
   const maxRetries = 3;
   let retryCount = 0;
-  
+
   while (retryCount < maxRetries) {
     try {
       // Use a transaction to ensure atomicity
       const result = await prisma.$transaction(async (tx: any) => {
-        // First check if user has sufficient credits
-        const userBalance = await tx.userBalance.findUnique({
-          where: { userId },
-          select: { credits: true }
+        // Atomic update: only decrement if credits >= amount
+        // updateMany returns { count: n }
+        const updateResult = await tx.userBalance.updateMany({
+          where: {
+            userId,
+            credits: { gte: amount }
+          },
+          data: {
+            credits: { decrement: amount }
+          }
         });
-        
-        if (!userBalance) {
-          throw new Error('User balance not found');
-        }
-        
-        if (userBalance.credits < amount) {
+
+        if (updateResult.count === 0) {
           throw new Error('Insufficient credits');
         }
-        
-        // Update credits atomically
-        const updated = await tx.userBalance.update({
-          where: { userId },
-          data: { credits: { decrement: amount } },
-          select: { credits: true }
-        });
-        
-        return updated;
+
+        // Return new balance for logging (optional, requires extra read if needed, or we just trust it worked)
+        // For logging purposes we can fetch it, but strictly speaking the atomic action is done.
+        return true;
       });
-      
-      logCollector.info(`Credits decremented successfully. Remaining: ${result.credits}`);
+
+      logCollector.info(`Credits decremented successfully from atomic balance.`);
       return true;
-      
+
     } catch (error: any) {
       retryCount++;
-      
+
       if (error.message === 'Insufficient credits') {
         logCollector.error('Insufficient balance');
         return false;
       }
-      
+
       if (retryCount >= maxRetries) {
         logCollector.error(`Cannot decrement credits after ${maxRetries} attempts: ${error.message}`);
         return false;
       }
-      
+
       // Wait before retry (exponential backoff)
       await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 100));
     }
   }
-  
+
   return false;
 }
 
 async function cleanupEnvironment(environment: Environment) {
   const cleanupPromises: Promise<void>[] = [];
-  
+
   try {
     // Close all pages first
     if (environment.browser) {
@@ -438,30 +435,30 @@ async function cleanupEnvironment(environment: Environment) {
         console.error('Error getting browser pages:', err);
       }
     }
-    
+
     // Wait for all pages to close
     await Promise.allSettled(cleanupPromises);
-    
+
     // Then close/disconnect browser
     if (environment.browser) {
       if (process.env.NODE_ENV !== 'production') {
         // Close locally in dev
-        await environment.browser.close().catch((err) => 
+        await environment.browser.close().catch((err) =>
           console.error('Cannot close browser, reason:', err)
         );
       } else {
         // Disconnect from brightdata in prod
-        await environment.browser.disconnect().catch((err) => 
+        await environment.browser.disconnect().catch((err) =>
           console.error('Cannot disconnect browser, reason:', err)
         );
       }
     }
-    
+
     // Clear environment references
     environment.browser = undefined;
     environment.page = undefined;
     environment.phases = {};
-    
+
   } catch (error) {
     console.error('Error during environment cleanup:', error);
   }

@@ -9,7 +9,12 @@ export async function POST(request: Request) {
   const signature = headers().get('stripe-signature') as string;
 
   try {
-    const event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!);
+    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+      console.error('STRIPE_WEBHOOK_SECRET is not configured');
+      return new NextResponse('Webhook configuration error', { status: 500 });
+    }
+
+    const event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET);
 
     switch (event.type) {
       case 'checkout.session.completed':

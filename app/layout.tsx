@@ -29,7 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider
-      fallbackRedirectUrl="/sign-in"
+      signInFallbackRedirectUrl="/sign-in"
       appearance={{
         elements: {
           formButtonPrimary: 'bg-primary hover:bg-primary/90 text-sm !shadow-none',

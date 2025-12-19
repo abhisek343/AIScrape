@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
-import { ExecutionLog } from '@prisma/client';
+import { ExecutionLog, ExecutionPhase } from '@prisma/client';
 import {
   CalendarIcon,
   CircleDashedIcon,
@@ -56,13 +56,13 @@ export default function ExecutionViewer({ initialData }: { initialData: Executio
     const phases = query.data?.phases || [];
     if (isRunning) {
       // Select the last executed phase
-      const phaseToSelect = phases.toSorted((a, b) => (a.startedAt! > b.startedAt! ? -1 : 1))[0];
+      const phaseToSelect = phases.toSorted((a: ExecutionPhase, b: ExecutionPhase) => (a.startedAt! > b.startedAt! ? -1 : 1))[0];
 
       setSelectedPhase(phaseToSelect.id);
       return;
     }
 
-    const phaseToSelect = phases.toSorted((a, b) => (a.completedAt! > b.completedAt! ? -1 : 1))[0];
+    const phaseToSelect = phases.toSorted((a: ExecutionPhase, b: ExecutionPhase) => (a.completedAt! > b.completedAt! ? -1 : 1))[0];
     setSelectedPhase(phaseToSelect.id);
   }, [query.data?.phases, isRunning, setSelectedPhase]);
 
@@ -91,8 +91,8 @@ export default function ExecutionViewer({ initialData }: { initialData: Executio
               <span className="lowercase">
                 {query.data?.startedAt
                   ? formatDistanceToNow(new Date(query.data?.startedAt), {
-                      addSuffix: true,
-                    })
+                    addSuffix: true,
+                  })
                   : '-'}
               </span>
             }
@@ -117,7 +117,7 @@ export default function ExecutionViewer({ initialData }: { initialData: Executio
         </div>
         <Separator />
         <div className="overflow-auto h-full px-2 py-4">
-          {query.data?.phases.map((phase, index) => (
+          {query.data?.phases.map((phase: ExecutionPhase, index: number) => (
             <Button
               key={phase.id}
               variant={selectedPhase === phase.id ? 'secondary' : 'ghost'}

@@ -11,7 +11,7 @@ import { getWorkflowsForUser } from '@/actions/workflows/get-workflows-for-user'
 export default function WorkflowsPage() {
   return (
     <div className="flex-1 flex flex-col h-full">
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-0 justify-between">
+      <div className="flex flex-col sm:flex-row gap-4 sm:gap-0 justify-between">
         <div className="flex flex-col">
           <h1 className="text-3xl font-bold">Workflows</h1>
           <p className="text-muted-foreground">Manage your workflows</p>

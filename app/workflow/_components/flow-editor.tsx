@@ -84,7 +84,7 @@ export default function FlowEditor({ workflow, registerAutoLayout }: { workflow:
         levels[lv].push(n.id);
       });
       let y = 0;
-      Object.keys(levels).sort((a,b)=>Number(a)-Number(b)).forEach(lv => {
+      Object.keys(levels).sort((a, b) => Number(a) - Number(b)).forEach(lv => {
         const ids = levels[Number(lv)];
         const startX = -(ids.length - 1) * (layerGapX / 2);
         ids.forEach((id, idx) => {
@@ -112,12 +112,12 @@ export default function FlowEditor({ workflow, registerAutoLayout }: { workflow:
         // No saved viewport; auto fit view when nodes exist
         setTimeout(() => fitView({ padding: 0.1, maxZoom: 1 }), 100);
       }
-  } catch (error) {
-    console.error("Failed to parse workflow definition in FlowEditor:", error);
-  }
-}, [workflow.definition, setEdges, setNodes, setViewport, fitView]);
+    } catch (error) {
+      console.error("Failed to parse workflow definition in FlowEditor:", error);
+    }
+  }, [workflow.definition, setEdges, setNodes, setViewport, fitView]);
 
-  const onNodeDrag = useCallback((event: React.MouseEvent, nodeId: string) => {
+  const onNodeDrag = useCallback((event: React.MouseEvent, node: AppNode) => {
     // When dragging a node that has edges, auto-reposition connected edges' labels and encourage smoother drag
     // (React Flow handles edge paths automatically; this is just to force updates).
     setEdges((eds) => eds.map((e) => ({ ...e })));
@@ -247,8 +247,8 @@ export default function FlowEditor({ workflow, registerAutoLayout }: { workflow:
         onDrop={onDrop}
         onConnect={onConnect}
         isValidConnection={isValidConnection}
-       onNodeDrag={onNodeDrag}
-    >
+        onNodeDrag={onNodeDrag}
+      >
         <Controls position="top-left" fitViewOptions={fitViewOptions} showZoom={true} showFitView={true} showInteractive={true} />
         <Background variant={BackgroundVariant.Dots} gap={20} size={2} />
       </ReactFlow>

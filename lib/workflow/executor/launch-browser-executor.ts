@@ -20,34 +20,44 @@ function validateWebsiteUrl(url: string): { valid: boolean; error?: string } {
 
   try {
     const parsedUrl = new URL(url);
-    
+
     // Only allow HTTP and HTTPS
     if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
       return { valid: false, error: 'Only HTTP and HTTPS protocols are allowed' };
     }
-    
+
     // Block forbidden protocols
     if (FORBIDDEN_PROTOCOLS.includes(parsedUrl.protocol)) {
       return { valid: false, error: `Protocol ${parsedUrl.protocol} is not allowed` };
     }
-    
+
     // Block forbidden hosts
     if (FORBIDDEN_HOSTS.includes(parsedUrl.hostname)) {
       return { valid: false, error: 'Cannot navigate to localhost or loopback addresses' };
     }
-    
-    // Block private IP ranges (basic check)
-    if (parsedUrl.hostname.startsWith('192.168.') || 
-        parsedUrl.hostname.startsWith('10.') ||
-        parsedUrl.hostname.match(/^172\.(1[6-9]|2[0-9]|3[01])\./)) {
+
+    // Block Cloud Metadata Service (AWS/GCP/Azure)
+    if (parsedUrl.hostname === '169.254.169.254') {
+      return { valid: false, error: 'Access to cloud metadata service is forbidden' };
+    }
+
+    // Block private IP ranges (Enhanced check)
+    const hostname = parsedUrl.hostname;
+    if (
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.') ||
+      hostname.match(/^172\.(1[6-9]|2[0-9]|3[01])\./) || // 172.16.x.x - 172.31.x.x
+      hostname === '::1' ||
+      hostname.match(/^fd[0-9a-f]{2}:/i) // IPv6 Unique Local
+    ) {
       return { valid: false, error: 'Cannot navigate to private IP addresses' };
     }
-    
+
     // Validate URL length
     if (url.length > 2048) {
       return { valid: false, error: 'URL exceeds maximum length of 2048 characters' };
     }
-    
+
     return { valid: true };
   } catch (error) {
     return { valid: false, error: 'Invalid URL format' };
@@ -74,19 +84,19 @@ async function setupSecurePage(page: Page): Promise<void> {
 
   // Block unnecessary resources to save bandwidth and improve performance
   await page.setRequestInterception(true);
-  
+
   page.on('request', (request) => {
     const resourceType = request.resourceType();
     const url = request.url();
-    
+
     // Block potentially dangerous or unnecessary resources
-    if (resourceType === 'font' || 
-        resourceType === 'media' ||
-        url.includes('analytics') ||
-        url.includes('tracking') ||
-        url.includes('advertisement') ||
-        url.includes('doubleclick') ||
-        url.includes('googleads')) {
+    if (resourceType === 'font' ||
+      resourceType === 'media' ||
+      url.includes('analytics') ||
+      url.includes('tracking') ||
+      url.includes('advertisement') ||
+      url.includes('doubleclick') ||
+      url.includes('googleads')) {
       request.abort();
     } else if (resourceType === 'image' && request.url().match(/\.(png|jpg|jpeg|gif|svg|webp)$/i)) {
       // Allow images but with size limits handled by browser
@@ -145,7 +155,7 @@ export async function LaunchBrowserExecutor(
           ],
           timeout: BROWSER_TIMEOUT,
         }),
-        new Promise<never>((_, reject) => 
+        new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Browser launch timeout')), BROWSER_TIMEOUT)
         )
       ]);
@@ -163,7 +173,7 @@ export async function LaunchBrowserExecutor(
           browserWSEndpoint: wsEndpoint,
           timeout: BROWSER_TIMEOUT,
         }),
-        new Promise<never>((_, reject) => 
+        new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Browser connection timeout')), BROWSER_TIMEOUT)
         )
       ]);
@@ -179,13 +189,13 @@ export async function LaunchBrowserExecutor(
 
     // Navigate with timeout and error handling
     environment.log.info(`Navigating to: ${websiteUrl}`);
-    
+
     await Promise.race([
       page.goto(websiteUrl, {
         waitUntil: 'domcontentloaded', // Don't wait for all resources
         timeout: PAGE_LOAD_TIMEOUT
       }),
-      new Promise<never>((_, reject) => 
+      new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Page load timeout')), PAGE_LOAD_TIMEOUT)
       )
     ]);
@@ -202,19 +212,19 @@ export async function LaunchBrowserExecutor(
     return true;
   } catch (error: any) {
     environment.log.error(`Browser launch failed: ${error.message}`);
-    
+
     // Cleanup on failure
     try {
       if (page) {
-        await page.close().catch(() => {});
+        await page.close().catch(() => { });
       }
       if (browser) {
-        await browser.close().catch(() => {});
+        await browser.close().catch(() => { });
       }
     } catch (cleanupError) {
       environment.log.warn(`Cleanup failed: ${cleanupError}`);
     }
-    
+
     return false;
   }
 }

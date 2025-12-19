@@ -7,6 +7,9 @@ const ALG = 'aes-256-gcm'; // key length is 32 bytes (64 hex chars)
 function getKey(): Buffer {
   const keyHex = process.env.ENCRYPTION_KEY;
   if (!keyHex) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('ENCRYPTION_KEY environment variable must be set in production');
+    }
     console.warn('ENCRYPTION_KEY environment variable is not set - using default key for development');
     // Use a default development key (not secure for production)
     return Buffer.from('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', 'hex');

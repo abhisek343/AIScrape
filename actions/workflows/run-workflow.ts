@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
 
 import prisma from '@/lib/prisma';
+import { safeJsonParse } from '@/lib/safe-json';
 import { flowToExecutionPlan } from '@/lib/workflow/execution-plan';
 import { TaskRegistry } from '@/lib/workflow/task/registry';
 import { executeWorkflow } from '@/lib/workflow/execute-workflow';
@@ -61,14 +62,22 @@ export async function runWorkflow(params: RunWorkflowParams): Promise<WorkflowEx
     if (!workflow.executionPlan) {
       throw new Error('no execution plan found in published workflow');
     }
-    executionPlan = JSON.parse(workflow.executionPlan);
-    definitionToUse = workflow.definition; // Published workflows always use their stored definition for record
+    const execPlanParse = safeJsonParse(workflow.executionPlan, { maxSize: 5 * 1024 * 1024, maxDepth: 20 });
+    if (!execPlanParse.success) {
+      throw new Error(`Invalid execution plan: ${execPlanParse.error}`);
+    }
+    executionPlan = execPlanParse.data;
+    definitionToUse = workflow.definition;
   } else {
     // For draft workflows, allow using a provided current definition
     if (currentFlowDefinition) {
       definitionToUse = currentFlowDefinition;
     }
-    const flow = JSON.parse(definitionToUse);
+    const flowParse = safeJsonParse(definitionToUse, { maxSize: 5 * 1024 * 1024, maxDepth: 20 });
+    if (!flowParse.success) {
+      throw new Error(`Invalid flow definition: ${flowParse.error}`);
+    }
+    const flow = flowParse.data;
     const result = flowToExecutionPlan(flow.nodes, flow.edges);
 
     if (result.error) {
@@ -119,7 +128,7 @@ export async function runWorkflow(params: RunWorkflowParams): Promise<WorkflowEx
     })
     .catch(async (error) => {
       console.error(`Workflow execution ${execution.id} failed:`, error);
-      
+
       // Update execution status to failed if not already updated
       try {
         await prisma.workflowExecution.update({

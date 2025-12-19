@@ -16,9 +16,8 @@ import {
 export const dynamic = 'force-dynamic';
 
 // Rate limiting: Track recent requests per workflow
-const recentExecutions = new Map<string, number[]>();
-const MAX_EXECUTIONS_PER_HOUR = 60; // Maximum 60 executions per hour per workflow
-const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour in milliseconds
+// Rate limiting settings
+const MAX_EXECUTIONS_PER_HOUR = 60;
 
 function isValidSecret(secret: string) {
   const API_SECRET = process.env.API_SECRET;
@@ -30,42 +29,15 @@ function isValidSecret(secret: string) {
   }
 
   try {
-    return timingSafeEqual(Buffer.from(secret), Buffer.from(API_SECRET));
+    // timingSafeEqual only works with Buffers of same length
+    const secretBuf = Buffer.from(secret);
+    const apiSecretBuf = Buffer.from(API_SECRET);
+    if (secretBuf.length !== apiSecretBuf.length) return false;
+
+    return timingSafeEqual(secretBuf, apiSecretBuf);
   } catch (error) {
     return false;
   }
-}
-
-function checkRateLimit(workflowId: string): { allowed: boolean; error?: string } {
-  const now = Date.now();
-  const executions = recentExecutions.get(workflowId) || [];
-  
-  // Clean old executions outside the window
-  const recentExecs = executions.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW);
-  
-  if (recentExecs.length >= MAX_EXECUTIONS_PER_HOUR) {
-    return {
-      allowed: false,
-      error: `Rate limit exceeded: ${MAX_EXECUTIONS_PER_HOUR} executions per hour allowed`
-    };
-  }
-  
-  // Add current execution timestamp
-  recentExecs.push(now);
-  recentExecutions.set(workflowId, recentExecs);
-  
-  // Clean up old entries to prevent memory leak
-  if (recentExecutions.size > 10000) {
-    const oldestEntries = Array.from(recentExecutions.entries())
-      .sort((a, b) => Math.min(...a[1]) - Math.min(...b[1]))
-      .slice(0, 1000);
-    
-    for (const [id] of oldestEntries) {
-      recentExecutions.delete(id);
-    }
-  }
-  
-  return { allowed: true };
 }
 
 export async function GET(req: Request) {
@@ -86,21 +58,33 @@ export async function GET(req: Request) {
     // Parameter validation
     const { searchParams } = new URL(req.url);
     const workflowId = searchParams.get('workflowId');
-    
+
     if (!workflowId || typeof workflowId !== 'string' || workflowId.length === 0) {
       return Response.json({ error: 'Missing or invalid workflowId parameter' }, { status: 400 });
     }
 
-    // Validate workflow ID format (basic CUID validation)
-    if (!/^[a-z0-9]{25}$/.test(workflowId)) {
+    // Validate workflow ID format (Prisma CUID validation - starts with 'c' followed by 24 alphanumeric chars)
+    if (!/^c[a-z0-9]{24}$/.test(workflowId)) {
       return Response.json({ error: 'Invalid workflowId format' }, { status: 400 });
     }
 
     // Rate limiting
-    const rateLimitResult = checkRateLimit(workflowId);
-    if (!rateLimitResult.allowed) {
-      console.warn(`Rate limit exceeded for workflow ${workflowId}: ${rateLimitResult.error}`);
-      return Response.json({ error: rateLimitResult.error }, { status: 429 });
+    // Rate limiting (Database backed for serverless consistency)
+    const lastHour = new Date(Date.now() - 60 * 60 * 1000);
+    const executionCount = await prisma.workflowExecution.count({
+      where: {
+        workflowId,
+        startedAt: {
+          gte: lastHour,
+        },
+      },
+    });
+
+    if (executionCount >= MAX_EXECUTIONS_PER_HOUR) {
+      return Response.json(
+        { error: `Rate limit exceeded: ${MAX_EXECUTIONS_PER_HOUR} executions per hour allowed` },
+        { status: 429 }
+      );
     }
 
     // Get workflow with validation
@@ -203,8 +187,8 @@ export async function GET(req: Request) {
         console.error(`Cron workflow execution ${execution.id} failed:`, error);
       });
 
-    return Response.json({ 
-      success: true, 
+    return Response.json({
+      success: true,
       executionId: execution.id,
       nextRun: nextRun.toISOString()
     }, { status: 200 });
