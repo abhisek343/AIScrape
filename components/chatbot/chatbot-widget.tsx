@@ -62,7 +62,7 @@ export function ChatbotWidget({ workflowId }: ChatbotWidgetProps) { // Destructu
     scrollToBottom();
     runMermaid(); // Run mermaid when messages change
   }, [messages, runMermaid]);
-  
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -73,7 +73,7 @@ export function ChatbotWidget({ workflowId }: ChatbotWidgetProps) { // Destructu
     const userMessage: Message = { role: "user", content: input };
     const currentInput = input; // Store current input before clearing
     setMessages((prevMessages) => [...prevMessages, userMessage]);
-    setInput(""); 
+    setInput("");
     setIsLoading(true);
 
     try {
@@ -102,7 +102,9 @@ export function ChatbotWidget({ workflowId }: ChatbotWidgetProps) { // Destructu
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error("Chatbot API Error Body:", errorText);
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -139,11 +141,11 @@ export function ChatbotWidget({ workflowId }: ChatbotWidgetProps) { // Destructu
     setIsLoading(true);
     try {
       // Pass workflowId to delete history for a specific workflow context if needed by backend
-      const deleteUrl = workflowId 
-        ? `/api/chatbot/delete-history?workflowId=${workflowId}` 
-        : "/api/chatbot/delete-history"; 
-        // Note: For DELETE, query params are common. If body is preferred, adjust backend.
-        // For now, assuming backend will be adapted for query param or general user history if no ID.
+      const deleteUrl = workflowId
+        ? `/api/chatbot/delete-history?workflowId=${workflowId}`
+        : "/api/chatbot/delete-history";
+      // Note: For DELETE, query params are common. If body is preferred, adjust backend.
+      // For now, assuming backend will be adapted for query param or general user history if no ID.
 
       const response = await fetch(deleteUrl, { // Use dynamic URL
         method: "DELETE",
@@ -207,7 +209,7 @@ export function ChatbotWidget({ workflowId }: ChatbotWidgetProps) { // Destructu
                   <div
                     key={index}
                     className={cn(
-                      "p-3 rounded-lg max-w-[85%] shadow-sm", 
+                      "p-3 rounded-lg max-w-[85%] shadow-sm",
                       msg.role === "user"
                         ? "bg-green-600 text-white self-end" // User message with project theme color
                         : "bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100 self-start" // Assistant message
@@ -259,8 +261,8 @@ const ChatMessageContent: React.FC<{ content: string }> = ({ content }) => {
           const mermaidId = `mermaid-${Date.now()}-${index}`;
           return (
             // Styling for Mermaid block container
-            <div 
-              key={mermaidId} 
+            <div
+              key={mermaidId}
               className="mermaid my-2 p-3 bg-gray-900 rounded-md overflow-auto" // Dark background for code/diagram
               data-mermaid-id={mermaidId}
             >

@@ -71,7 +71,7 @@ async function waitForExecutionAndSummarize(executionId: string, timeoutMs = 90_
         let out: Record<string, any> = {};
         try {
           out = p.outputs ? JSON.parse(p.outputs) : {};
-        } catch {}
+        } catch { }
         return { phase: idx + 1, name: p.name, outputs: out };
       });
       const last = outputs[outputs.length - 1];
@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
 
       Under no circumstances should you generate, engage with, or respond to any content that is sexually explicit, hateful, harmful, or otherwise inappropriate. If a user attempts to ask about such topics, politely decline and redirect the conversation back to the project's scope.
     `;
-    
+
     // Build rich, vivid node encyclopedia dynamically from TaskRegistry
     const DetailedDescriptions: Record<string, string> = {
       LAUNCH_BROWSER: 'Opens a fresh, automated browser and points it at the first URL in your journey. This is the doorway to any interactive scraping: cookies, scripts, and dynamic content all load just like a real user.',
@@ -210,7 +210,7 @@ export async function POST(req: NextRequest) {
 
     const availableNodesDescription = buildAvailableNodesDescription();
 
-// Unified prompt section for AI capabilities (planning and acting)
+    // Unified prompt section for AI capabilities (planning and acting)
 
     let workflowContextHeader = "";
     if (clientWorkflowId && clientWorkflowId !== GENERAL_CHAT_PLACEHOLDER) { // Check if it's a specific workflow
@@ -239,7 +239,7 @@ export async function POST(req: NextRequest) {
             }
             narrative = `Workflow outline:\n${steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`;
           }
-        } catch {}
+        } catch { }
         const wfDesc = currentWorkflow.description || 'No description';
         workflowContextHeader = `The user is currently working on a workflow named "${currentWorkflow.name}". Description: "${wfDesc}". ${narrative ? `\n\n${narrative}\n\n` : ''}Tailor your guidance to this specific workflow if the question seems related to it.\n\n`;
       }
@@ -299,7 +299,7 @@ Maintain a helpful, safe, and project-focused conversation.
     - Ensure at least one entry-point node (e.g., LAUNCH_BROWSER). Connect edges so all required inputs are satisfied.
     - For UPDATE_* actions, omit name and target the currently open workflow context.
 `;
-    
+
     const finalSystemPrompt = workflowContextHeader + systemPrompt;
 
     // Prepare the contents for the model - system prompt is prepended as a user message
@@ -307,7 +307,7 @@ Maintain a helpful, safe, and project-focused conversation.
 
     // Get the generative model with optional Google Search grounding tools enabled via env flag
     const modelOptions: any = {
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       safetySettings: [
         {
           category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -327,10 +327,10 @@ Maintain a helpful, safe, and project-focused conversation.
         },
       ],
     };
-    if (process.env.GEMINI_ENABLE_GOOGLE_SEARCH?.toLowerCase() === 'true') {
-      // Cast to any to avoid type mismatches across SDK versions
-      modelOptions.tools = [{ googleSearch: {} }];
-    }
+    // if (process.env.GEMINI_ENABLE_GOOGLE_SEARCH?.toLowerCase() === 'true') {
+    //   // Cast to any to avoid type mismatches across SDK versions
+    //   // modelOptions.tools = [{ googleSearch: {} }];
+    // }
     const generativeModel = genAI.getGenerativeModel(modelOptions);
 
     // Send the latest user message to the model
@@ -338,9 +338,9 @@ Maintain a helpful, safe, and project-focused conversation.
       contents: preparedContents,
       // generationConfig: { maxOutputTokens: 2048 },
       // Optionally pass tool configuration if search is enabled (cast to any for forward-compat)
-      ...(process.env.GEMINI_ENABLE_GOOGLE_SEARCH?.toLowerCase() === 'true'
-        ? ({ toolConfig: { googleSearch: { disableAttribution: false } } as any })
-        : {}),
+      // ...(process.env.GEMINI_ENABLE_GOOGLE_SEARCH?.toLowerCase() === 'true'
+      //   ? ({ toolConfig: { googleSearch: { disableAttribution: false } } as any })
+      //   : {}),
     });
     const response = result.response;
     let text = response.text(); // Correct way to get text
@@ -386,7 +386,7 @@ Maintain a helpful, safe, and project-focused conversation.
     // Handle other specific commands if a workflow wasn't created by AI in this step.
     // These rely on the AI's textual output indicating intent, or simple keyword matching for now.
     // The if (!workflowCreatedOrAttemptedByAI) condition is removed as AI workflow creation is removed.
-    
+
     // The AI is now expected to guide the user or respond to simple commands like listing.
     // Direct keyword matching for "list workflows" and "run workflow" can be kept for now,
     // or eventually be fully replaced by AI intent parsing if the prompt proves effective.
@@ -445,6 +445,6 @@ Maintain a helpful, safe, and project-focused conversation.
     return NextResponse.json({ response: text });
   } catch (error) {
     console.error('Chatbot API error:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return new NextResponse(`Internal Server Error: ${error instanceof Error ? error.message : String(error)}`, { status: 500 });
   }
 }

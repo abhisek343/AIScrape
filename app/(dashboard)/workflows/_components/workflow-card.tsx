@@ -29,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import TooltipWrapper from '@/components/tooltip-wrapper';
 import DeleteWorkflowDialog from '@/app/(dashboard)/workflows/_components/delete-workflow-dialog';
 import RunBtn from '@/app/(dashboard)/workflows/_components/run-btn';
@@ -47,13 +48,39 @@ const statusColors = {
   [WorkflowStatus.PUBLISHED]: 'bg-primary',
 };
 
-export default function WorkflowCard({ workflow }: { workflow: Workflow }) {
+interface WorkflowCardProps {
+  workflow: Workflow;
+  isSelectMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
+}
+
+export default function WorkflowCard({
+  workflow,
+  isSelectMode = false,
+  isSelected = false,
+  onToggleSelect,
+}: WorkflowCardProps) {
   const isDraft = workflow.status === WorkflowStatus.DRAFT;
 
+  const handleCheckboxChange = () => {
+    onToggleSelect?.(workflow.id);
+  };
+
   return (
-    <Card className="border border-separate shadow-sm rounded-lg overflow-hidden hover:shadow-md dark:shadow-primary/30 group/card">
+    <Card className={cn(
+      "border border-separate shadow-sm rounded-lg overflow-hidden hover:shadow-md dark:shadow-primary/30 group/card",
+      isSelected && "ring-2 ring-primary"
+    )}>
       <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-4 h-auto md:h-[100px]">
         <div className="flex items-start sm:items-center just space-x-3 w-full">
+          {isSelectMode && (
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={handleCheckboxChange}
+              className="mr-2"
+            />
+          )}
           <div
             className={cn(
               'w-10 h-10 rounded-full flex items-center justify-center',
