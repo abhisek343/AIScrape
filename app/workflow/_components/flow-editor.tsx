@@ -249,10 +249,12 @@ export default function FlowEditor({ workflow, registerAutoLayout }: { workflow:
         onConnect={onConnect}
         isValidConnection={isValidConnection}
         onNodeDrag={onNodeDrag}
-        panOnScroll={true}
-        panOnScrollMode={'horizontal' as any} // Allow horizontal pan with scroll as well
+        panOnScroll={false}
         selectionMode={'partial' as any}
-        selectionOnDrag={true}
+        selectionOnDrag={false}
+        zoomOnPinch={true}
+        zoomOnDoubleClick={true}
+        panOnDrag={[1, 2]} // Allow panning with left click (drag) and touch/right click
       >
         <Controls position="top-left" fitViewOptions={fitViewOptions} showZoom={true} showFitView={true} showInteractive={true} />
         <MiniMap
@@ -266,7 +268,6 @@ export default function FlowEditor({ workflow, registerAutoLayout }: { workflow:
         />
         <Background variant={BackgroundVariant.Dots} gap={20} size={2} />
       </ReactFlow>
-      <ChatbotWidget workflowId={workflow.id} />
     </main>
   );
 }

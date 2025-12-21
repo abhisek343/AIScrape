@@ -26,10 +26,10 @@ type Guide = {
 const guides: Guide[] = [
   {
     icon: Globe,
-    title: 'Getting started: category → list → webhook',
+    title: 'Getting started: browser → wait → html → list → webhook',
     caption: 'From a listing page to structured JSON and delivery',
     steps: [
-      'Launch Browser → Navigate URL',
+      'Launch Browser & Navigate URL',
       'Wait for product grid to load',
       'Page to HTML → Extract List',
       'Deliver via Webhook',
@@ -43,27 +43,27 @@ const guides: Guide[] = [
     title: 'Monitor price changes',
     caption: 'Track price deltas on a schedule',
     steps: [
-      'Navigate URL with parameters',
+      'Launch Browser & Navigate URL',
       'Extract attributes for price',
       'Compare and store snapshot',
       'Send alert on threshold',
     ],
-    example: `NAVIGATE_URL("/search?q=headphones") → PAGE_TO_HTML() → EXTRACT_ATTRIBUTES(
+    example: `LAUNCH_BROWSER(Website Url: "https://example.com/search?q=headphones") → PAGE_TO_HTML() → EXTRACT_ATTRIBUTES(
   selector: ".result",
   attribute: "textContent"
-) → ADD_PROPERTY_TO_JSON(name: "delta", value: diff(previous,current)) → DELIVER_VIA_WEBHOOK()`,
+) → ADD_PROPERTY_TO_JSON(name: "delta", value: "diff") → DELIVER_VIA_WEBHOOK()`,
   },
   {
     icon: Newspaper,
     title: 'Scrape articles with AI',
     caption: 'Turn messy HTML into clean structured data',
     steps: [
-      'Go to article page',
-      'Page to HTML snapshot',
-      'Extract Data with AI (title, author, date, summary)',
-      'Store Data or send downstream',
+      'Launch Browser & Navigate URL',
+      'Snapshot Page to HTML',
+      'Extract Data with AI',
+      'Store Data',
     ],
-    example: `NAVIGATE_URL(articleUrl) → PAGE_TO_HTML() → EXTRACT_DATA_WITH_AI(
+    example: `LAUNCH_BROWSER(Website Url: "https://news.ycombinator.com") → PAGE_TO_HTML() → EXTRACT_DATA_WITH_AI(
   prompt: "Return {title, author, date, summary}"
 ) → STORE_DATA(key: "articles/today")`,
   },
@@ -78,19 +78,19 @@ const guides: Guide[] = [
       'Deliver via Webhook',
     ],
     example: `HTTP_REQUEST(GET, "https://api.example.com/urls") → FOR_EACH(urls)
-  { NAVIGATE_URL(url) → PAGE_TO_HTML() → EXTRACT_TEXT_FROM_ELEMENT("h1") } → DELIVER_VIA_WEBHOOK()`,
+  { LAUNCH_BROWSER(Website Url: url) → PAGE_TO_HTML() → EXTRACT_TEXT_FROM_ELEMENT("h1") } → DELIVER_VIA_WEBHOOK()`,
   },
   {
     icon: Layers2,
     title: 'Infinite scroll collection',
     caption: 'Scroll and gather items from dynamic feeds',
     steps: [
-      'Launch Browser → Navigate URL',
+      'Launch Browser & Navigate URL',
       'Infinite Scroll → Wait for network idle',
       'Page to HTML → Extract List',
       'Store or Deliver',
     ],
-    example: `LAUNCH_BROWSER(Website Url: feedUrl) → INFINITE_SCROLL(iterations: 5) → WAIT_FOR_NETWORK_IDLE() → PAGE_TO_HTML() → EXTRACT_LIST(
+    example: `LAUNCH_BROWSER(Website Url: "https://example.com/feed") → INFINITE_SCROLL(iterations: 5) → WAIT_FOR_NETWORK_IDLE() → PAGE_TO_HTML() → EXTRACT_LIST(
   selector: ".card .title"
 ) → STORE_DATA(key: "feed/items")`,
   },
@@ -99,14 +99,12 @@ const guides: Guide[] = [
     title: 'Element screenshot',
     caption: 'Capture full page or a single element',
     steps: [
-      'Navigate URL',
-      'Wait for element',
-      'Screenshot (full/element)',
-      'Store image (base64) or deliver',
+      'Launch Browser & Navigate URL',
+      'Wait for specific element',
+      'Capture Screenshot',
+      'Deliver results',
     ],
-    example: `NAVIGATE_URL(pageUrl) → WAIT_FOR_ELEMENT("#chart") → SCREENSHOT(
-  mode: "element", selector: "#chart", format: "png"
-) → STORE_DATA(key: "images/chart.png")`,
+    example: `LAUNCH_BROWSER(Website Url: "https://example.com") → WAIT_FOR_ELEMENT(".hero") → SCREENSHOT() → DELIVER_VIA_WEBHOOK()`,
   },
   {
     icon: Layers2,
@@ -118,8 +116,8 @@ const guides: Guide[] = [
       'Use flags and groups',
       'Store or forward matches',
     ],
-    example: `PAGE_TO_HTML() → REGEX_EXTRACT(
-  input: html, pattern: "Price: \\$(\\d+\\.\\d{2})", flags: "g"
+    example: `LAUNCH_BROWSER(Website Url: "https://example.com/data") → PAGE_TO_HTML() → REGEX_EXTRACT(
+  input: html, pattern: "Price: \\\\$(\\\\d+\\\\.\\\\d{2})", flags: "g"
 ) → STORE_DATA(key: "matches/prices")`,
   },
   {
@@ -127,12 +125,12 @@ const guides: Guide[] = [
     title: 'Login sequence',
     caption: 'Automate login forms safely',
     steps: [
-      'Navigate → Wait for form',
+      'Launch Browser & Navigate URL',
       'Fill Input (email, password)',
       'Click submit → Wait for navigation',
       'Proceed to protected pages',
     ],
-    example: `NAVIGATE_URL("/login") → WAIT_FOR_ELEMENT("#email") → FILL_INPUT(#email, user) → FILL_INPUT(#password, pass) → CLICK_ELEMENT("button[type=submit]") → WAIT_FOR_NAVIGATION()`,
+    example: `LAUNCH_BROWSER(Website Url: "https://example.com/login") → WAIT_FOR_ELEMENT("#email") → FILL_INPUT(selector: "#email", value: "user") → FILL_INPUT(selector: "#password", value: "pass") → CLICK_ELEMENT("button[type=submit]") → WAIT_FOR_NAVIGATION()`,
   },
   {
     icon: Layers2,
@@ -141,10 +139,10 @@ const guides: Guide[] = [
     steps: [
       'Set viewport and user agent',
       'Set cookies/localStorage',
-      'Navigate and extract',
-      'Deliver downstream',
+      'Launch Browser & Navigate',
+      'Extract contents',
     ],
-    example: `SET_VIEWPORT(375x812) → SET_USER_AGENT("Mozilla/5.0 iPhone") → SET_COOKIES([...]) → NAVIGATE_URL(url) → PAGE_TO_HTML() → EXTRACT_TEXT_FROM_ELEMENT("h1")`,
+    example: `SET_VIEWPORT(375x812) → SET_USER_AGENT("Mozilla/5.0 iPhone") → SET_COOKIES([...]) → LAUNCH_BROWSER(Website Url: "https://example.com") → PAGE_TO_HTML() → EXTRACT_TEXT_FROM_ELEMENT("h1")`,
   },
   {
     icon: Globe,
@@ -376,25 +374,43 @@ export default function WorkflowGuides() {
             continue;
           }
 
-          // Add some default inputs for common nodes to make them executable
-          const defaultInputs: Record<string, string> = {};
-          if (type === 'LAUNCH_BROWSER') {
-            defaultInputs['Website Url'] = 'https://example.com';
-          } else if (type === 'WAIT_FOR_ELEMENT') {
-            defaultInputs['Selector'] = '.content';
-            defaultInputs['Visibility'] = 'visible';
-          } else if (type === 'EXTRACT_LIST') {
-            defaultInputs['Selector'] = '.item';
-          } else if (type === 'EXTRACT_ATTRIBUTES') {
-            defaultInputs['Selector'] = 'a';
-            defaultInputs['Attribute'] = 'href';
-          } else if (type === 'EXTRACT_TEXT_FROM_ELEMENT') {
-            defaultInputs['Selector'] = 'h1';
-          } else if (type === 'DELIVER_VIA_WEBHOOK') {
-            defaultInputs['Target URL'] = 'https://webhook.site/your-webhook-url';
+          // Parse inputs if present (e.g., Website Url: "...")
+          const parsedInputs: Record<string, string> = {};
+          const inputMatch = raw.match(/\((.*)\)/);
+          if (inputMatch && inputMatch[1]) {
+            const pairs = inputMatch[1].split(',').map(p => p.trim());
+            pairs.forEach(p => {
+              const [key, ...val] = p.split(':').map(v => v.trim());
+              if (key && val.length > 0) {
+                // Remove quotes if present
+                parsedInputs[key] = val.join(':').replace(/^"(.*)"$/, '$1');
+              }
+            });
           }
 
-          const k = addNode(type, defaultInputs);
+          // Merge with default inputs
+          const defaultInputs: Record<string, string> = {};
+          if (type === 'LAUNCH_BROWSER') {
+            defaultInputs['Website Url'] = parsedInputs['Website Url'] || 'https://example.com';
+          } else if (type === 'WAIT_FOR_ELEMENT') {
+            defaultInputs['Selector'] = parsedInputs['selector'] || parsedInputs['Selector'] || '.content';
+            defaultInputs['Visibility'] = 'visible';
+          } else if (type === 'EXTRACT_LIST') {
+            defaultInputs['Selector'] = parsedInputs['selector'] || '.item';
+          } else if (type === 'EXTRACT_ATTRIBUTES') {
+            defaultInputs['Selector'] = parsedInputs['selector'] || 'a';
+            defaultInputs['Attribute'] = parsedInputs['attribute'] || 'href';
+          } else if (type === 'EXTRACT_TEXT_FROM_ELEMENT') {
+            defaultInputs['Selector'] = parsedInputs['selector'] || 'h1';
+          } else if (type === 'DELIVER_VIA_WEBHOOK') {
+            defaultInputs['Target URL'] = parsedInputs['Target URL'] || 'https://webhook.site/your-webhook-url';
+          } else if (type === 'STORE_DATA') {
+            defaultInputs['Storage Key'] = parsedInputs['key'] || 'scraped-data';
+          } else if (type === 'EXTRACT_DATA_WITH_AI') {
+            defaultInputs['Prompt'] = parsedInputs['prompt'] || 'Extract data';
+          }
+
+          const k = addNode(type, { ...defaultInputs, ...parsedInputs });
           if (connectInput && lastKey) {
             connectFromLast(k, connectInput);
           }
@@ -402,28 +418,8 @@ export default function WorkflowGuides() {
           lastOutput = newLastOutput;
         }
 
-        // Ensure a starting node exists.
-        // If there's no LAUNCH_BROWSER node but there are nodes that require a browser,
-        // prepend a LAUNCH_BROWSER and connect it to the first browser-dependent node.
-        const hasLaunch = nodes.some(n => n.type === 'LAUNCH_BROWSER');
-        if (!hasLaunch) {
-          // Determine if any node expects a 'Web page' input as entry
-          const browserNeedingNodeIndex = nodes.findIndex(n => {
-            const def = TaskRegistry[n.type as keyof typeof TaskRegistry];
-            return !!def?.inputs?.some(i => i.name === 'Web page');
-          });
-
-          if (browserNeedingNodeIndex >= 0) {
-            // Create a unique key for the new Launch Browser node
-            const launchKey = String.fromCharCode(keyCode);
-            keyCode++;
-            nodes.push({ key: launchKey, type: 'LAUNCH_BROWSER', inputs: { 'Website Url': 'https://example.com' } });
-
-            const targetKey = nodes[browserNeedingNodeIndex].key;
-            // Connect launch to the first browser-dependent node
-            edges.unshift({ from: { node: launchKey, output: 'Web page' }, to: { node: targetKey, input: 'Web page' } });
-          }
-        }
+        // We've removed the auto-add LAUNCH_BROWSER logic here as well,
+        // because we updated the guides to include it explicitly.
 
         return { workflow: { name: title, description: 'Starter created from guide', nodes, edges } };
       }
@@ -445,7 +441,7 @@ export default function WorkflowGuides() {
     }
   }
   return (
-    <section className="space-y-6">
+    <section className="space-y-6 pb-24">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Workflow guides</h2>

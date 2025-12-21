@@ -26,32 +26,28 @@ export default function NodeHeader({ taskType, nodeId }: { taskType: TaskType; n
             <CoinsIcon size={16} />
             {task.credits}
           </Badge>
-          {!task.isEntryPoint && (
-            <>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  deleteElements({ nodes: [{ id: nodeId }] });
-                }}
-              >
-                <TrashIcon size={12} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  const node = getNode(nodeId) as AppNode;
-                  const newX = node.position.x;
-                  const newY = node.position.y;
-                  const newNode = createFlowNode(node.data.type, { x: newX, y: newY + node.measured?.height! + 20 });
-                  addNodes([newNode]);
-                }}
-              >
-                <CopyIcon size={12} />
-              </Button>
-            </>
-          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              deleteElements({ nodes: [{ id: nodeId }] });
+            }}
+          >
+            <TrashIcon size={12} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              const node = getNode(nodeId) as AppNode;
+              const newX = node.position.x;
+              const newY = node.position.y;
+              const newNode = createFlowNode(node.data.type, { x: newX, y: newY + node.measured?.height! + 20 });
+              addNodes([newNode]);
+            }}
+          >
+            <CopyIcon size={12} />
+          </Button>
           <Button variant="ghost" size="icon" className="drag-handle cursor-grab active:cursor-grabbing">
             <GripVerticalIcon size={20} />
           </Button>

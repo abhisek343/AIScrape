@@ -28,15 +28,28 @@ function generateUuid(): string {
 
 export function buildDefinitionFromAiSpec(spec: AiAutomationSpec): string {
   const keyToNodeId = new Map<string, string>();
-  const nodes = (spec.workflow.nodes || []).map((n, idx) => {
+
+  // 1. Separate nodes into Launch Browser and everything else
+  const rawNodes = spec.workflow.nodes || [];
+  const browserNodes = rawNodes.filter(n => n.type === 'LAUNCH_BROWSER');
+  const otherNodes = rawNodes.filter(n => n.type !== 'LAUNCH_BROWSER');
+
+  // 2. Linearize nodes with Launch Browser at the beginning
+  const sortedNodes = [...browserNodes, ...otherNodes];
+
+  const nodes = sortedNodes.map((n, idx) => {
     if (!TaskRegistry[n.type as keyof typeof TaskRegistry]) {
       throw new Error(`Unknown node type: ${n.type}`);
     }
     const id = generateUuid();
     keyToNodeId.set(n.key, id);
-    // Create a flowing layout with alternating heights for better connection visibility
-    const x = 150 + idx * 350;
-    const y = idx % 2 === 0 ? 100 : 250;
+
+    // Create a spacious linear layout to prevent overlaps
+    // Nodes move from left to right with a large gap
+    const x = 100 + idx * 450;
+    // Alternate height slightly for visual flow, but keep it within a clear band
+    const y = idx % 2 === 0 ? 100 : 150;
+
     return {
       id,
       type: 'AIScrapeNode',
@@ -65,44 +78,10 @@ export function buildDefinitionFromAiSpec(spec: AiAutomationSpec): string {
     };
   });
 
-  // Auto-insert a Launch Browser node if any node requires a 'Web page' input that isn't connected
-  const hasLaunchBrowser = nodes.some(n => n.data.type === 'LAUNCH_BROWSER');
-  if (!hasLaunchBrowser) {
-    // Build a quick lookup for node definitions
-    const nodeDefById = new Map(nodes.map(n => [n.id, TaskRegistry[n.data.type as keyof typeof TaskRegistry]]));
+  // Note: We removed the auto-insert Launch Browser logic here to rely on explicit guides.
+  // This prevents double-adding and gives the user exactly what they see in the example.
 
-    // Find a node that requires a 'Web page' input and is missing an incoming edge for it
-    const targetNeedingWebPage = nodes.find(n => {
-      const def = nodeDefById.get(n.id);
-      if (!def) return false;
-      const needsWebPage = !!def.inputs?.some(i => i.name === 'Web page');
-      if (!needsWebPage) return false;
-      const hasIncomingWebPage = edges.some(e => e.target === n.id && e.targetHandle === 'Web page');
-      return !hasIncomingWebPage;
-    });
-
-    if (targetNeedingWebPage) {
-      const launchId = generateUuid();
-      nodes.unshift({
-        id: launchId,
-        type: 'AIScrapeNode',
-        dragHandle: '.drag-handle',
-        data: { type: 'LAUNCH_BROWSER', inputs: { 'Website Url': 'https://example.com' } },
-        position: { x: 100, y: 100 },
-      });
-      // Connect Launch Browser -> targetNeedingWebPage
-      edges.unshift({
-        id: generateUuid(),
-        source: launchId,
-        target: targetNeedingWebPage.id,
-        sourceHandle: 'Web page',
-        targetHandle: 'Web page',
-        animated: true,
-      });
-    }
-  }
-
-  return JSON.stringify({ nodes, edges, viewport: { x: 0, y: 0, zoom: 1 } });
+  return JSON.stringify({ nodes, edges, viewport: { x: 0, y: 0, zoom: 0.8 } });
 }
 
 
