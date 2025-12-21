@@ -31,7 +31,7 @@ export async function executeWorkflow(executionId: string, nextRunAt?: Date) {
   // Safely parse workflow definition
   const definitionParseResult = safeJsonParse(execution.definition, {
     maxSize: 5 * 1024 * 1024, // 5MB limit for workflow definitions
-    maxDepth: 20
+    maxDepth: 50
   });
 
   if (!definitionParseResult.success) {

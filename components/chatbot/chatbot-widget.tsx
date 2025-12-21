@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import mermaid from "mermaid";
+import { ReactFlowProvider } from '@xyflow/react';
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,173 +154,175 @@ export function ChatbotWidget({ workflowId }: ChatbotWidgetProps) {
   };
 
   return (
-    <div
-      className="z-[100] flex flex-col items-start"
-      style={{ position: 'fixed', bottom: '1.5rem', left: '1.5rem', right: 'auto', top: 'auto' }}
-    >
-      <AnimatePresence>
-        {!isOpen && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0, x: -20 }}
-            animate={{ scale: 1, opacity: 1, x: 0 }}
-            exit={{ scale: 0, opacity: 0, x: -20 }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <Button
-              className="rounded-full w-16 h-16 shadow-[0_0_20px_rgba(37,99,235,0.4)] bg-blue-600 hover:bg-blue-500 text-white border-0 transition-all duration-300"
-              onClick={() => setIsOpen(true)}
+    <ReactFlowProvider>
+      <div
+        className="z-[100] flex flex-col items-start"
+        style={{ position: 'fixed', bottom: '1.5rem', left: '1.5rem', right: 'auto', top: 'auto' }}
+      >
+        <AnimatePresence>
+          {!isOpen && (
+            <motion.div
+              initial={{ scale: 0, opacity: 0, x: -20 }}
+              animate={{ scale: 1, opacity: 1, x: 0 }}
+              exit={{ scale: 0, opacity: 0, x: -20 }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
             >
-              <MessageSquareText className="w-7 h-7" />
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <Button
+                className="rounded-full w-16 h-16 shadow-[0_0_20px_rgba(37,99,235,0.4)] bg-blue-600 hover:bg-blue-500 text-white border-0 transition-all duration-300"
+                onClick={() => setIsOpen(true)}
+              >
+                <MessageSquareText className="w-7 h-7" />
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20, x: -20 }}
-            animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20, x: -20 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed inset-x-4 bottom-4 top-4 md:absolute md:inset-auto md:bottom-20 md:left-0 w-auto h-auto md:w-[420px] md:h-[600px] z-[101]"
-          >
-            <Card className="w-full h-full flex flex-col border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-background/95 backdrop-blur-2xl overflow-hidden rounded-2xl md:rounded-3xl">
-              <CardHeader className="p-4 border-b border-white/5 bg-gradient-to-r from-emerald-500/10 to-transparent">
-                <div className="flex flex-row items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <CardTitle className="text-lg font-semibold tracking-tight">AI Scrape Assistant</CardTitle>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={handleClearHistory}
-                      disabled={isLoading}
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                      title="Clear chat history"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setIsOpen(false)}
-                      className="h-8 w-8 text-muted-foreground hover:bg-white/10 rounded-full"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-
-              <CardContent className="flex-1 p-0 overflow-hidden relative">
-                <ScrollArea className="h-full px-4 pt-4">
-                  <div className="flex flex-col space-y-4 pb-4">
-                    {messages.length === 0 && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="flex flex-col items-center justify-center h-[400px] text-center space-y-4"
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20, x: -20 }}
+              animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20, x: -20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed inset-x-4 bottom-4 top-4 md:absolute md:inset-auto md:bottom-20 md:left-0 w-auto h-auto md:w-[420px] md:h-[600px] z-[101]"
+            >
+              <Card className="w-full h-full flex flex-col border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-background/95 backdrop-blur-2xl overflow-hidden rounded-2xl md:rounded-3xl">
+                <CardHeader className="p-4 border-b border-white/5 bg-gradient-to-r from-emerald-500/10 to-transparent">
+                  <div className="flex flex-row items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <CardTitle className="text-lg font-semibold tracking-tight">AI Scrape Assistant</CardTitle>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleClearHistory}
+                        disabled={isLoading}
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="Clear chat history"
                       >
-                        <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 flex items-center justify-center mb-2">
-                          <Sparkles className="w-8 h-8 text-emerald-500" />
-                        </div>
-                        <div className="space-y-1">
-                          <h3 className="font-semibold text-lg">Hello! I'm your AI guide.</h3>
-                          <p className="text-sm text-muted-foreground max-w-[250px]">
-                            Ask me to create a workflow, explain nodes, or optimize your scraping flow.
-                          </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-2 w-full pt-4">
-                          {QUICK_ACTIONS.map((action, i) => (
-                            <motion.button
-                              key={i}
-                              whileHover={{ scale: 1.02, backgroundColor: "rgba(16, 185, 129, 0.1)" }}
-                              whileTap={{ scale: 0.98 }}
-                              onClick={() => handleSendMessage(action.text)}
-                              className="flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-white/5 text-left text-sm transition-all text-muted-foreground hover:text-foreground"
-                            >
-                              <action.icon className="w-4 h-4 text-emerald-500" />
-                              {action.label}
-                            </motion.button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {messages.map((msg, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, x: msg.role === "user" ? 20 : -20, y: 10 }}
-                        animate={{ opacity: 1, x: 0, y: 0 }}
-                        className={cn(
-                          "flex flex-col max-w-[85%] relative",
-                          msg.role === "user" ? "self-end" : "self-start"
-                        )}
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setIsOpen(false)}
+                        className="h-8 w-8 text-muted-foreground hover:bg-white/10 rounded-full"
                       >
-                        <div
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="flex-1 p-0 overflow-hidden relative">
+                  <ScrollArea className="h-full px-4 pt-4">
+                    <div className="flex flex-col space-y-4 pb-4">
+                      {messages.length === 0 && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="flex flex-col items-center justify-center h-[400px] text-center space-y-4"
+                        >
+                          <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 flex items-center justify-center mb-2">
+                            <Sparkles className="w-8 h-8 text-emerald-500" />
+                          </div>
+                          <div className="space-y-1">
+                            <h3 className="font-semibold text-lg">Hello! I'm your AI guide.</h3>
+                            <p className="text-sm text-muted-foreground max-w-[250px]">
+                              Ask me to create a workflow, explain nodes, or optimize your scraping flow.
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-2 w-full pt-4">
+                            {QUICK_ACTIONS.map((action, i) => (
+                              <motion.button
+                                key={i}
+                                whileHover={{ scale: 1.02, backgroundColor: "rgba(16, 185, 129, 0.1)" }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => handleSendMessage(action.text)}
+                                className="flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-white/5 text-left text-sm transition-all text-muted-foreground hover:text-foreground"
+                              >
+                                <action.icon className="w-4 h-4 text-emerald-500" />
+                                {action.label}
+                              </motion.button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {messages.map((msg, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, x: msg.role === "user" ? 20 : -20, y: 10 }}
+                          animate={{ opacity: 1, x: 0, y: 0 }}
                           className={cn(
-                            "p-3.5 rounded-2xl shadow-sm text-sm leading-relaxed",
-                            msg.role === "user"
-                              ? "bg-emerald-600 text-white rounded-tr-none"
-                              : "bg-muted text-foreground rounded-tl-none border border-white/5 backdrop-blur-md"
+                            "flex flex-col max-w-[85%] relative",
+                            msg.role === "user" ? "self-end" : "self-start"
                           )}
                         >
-                          <ChatMessageContent content={msg.content} />
-                        </div>
-                        <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                          {msg.role === "user" ? "You" : "Assistant"}
-                        </span>
-                      </motion.div>
-                    ))}
+                          <div
+                            className={cn(
+                              "p-3.5 rounded-2xl shadow-sm text-sm leading-relaxed",
+                              msg.role === "user"
+                                ? "bg-emerald-600 text-white rounded-tr-none"
+                                : "bg-muted text-foreground rounded-tl-none border border-white/5 backdrop-blur-md"
+                            )}
+                          >
+                            <ChatMessageContent content={msg.content} />
+                          </div>
+                          <span className="text-[10px] text-muted-foreground mt-1 px-1">
+                            {msg.role === "user" ? "You" : "Assistant"}
+                          </span>
+                        </motion.div>
+                      ))}
 
-                    {isLoading && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="self-start p-3 bg-muted border border-white/5 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-2"
-                      >
-                        <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
-                        <span className="text-xs font-medium text-muted-foreground">AI is working...</span>
-                      </motion.div>
-                    )}
-                    <div ref={messagesEndRef} className="h-4" />
-                  </div>
-                </ScrollArea>
-              </CardContent>
+                      {isLoading && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="self-start p-3 bg-muted border border-white/5 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-2"
+                        >
+                          <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                          <span className="text-xs font-medium text-muted-foreground">AI is working...</span>
+                        </motion.div>
+                      )}
+                      <div ref={messagesEndRef} className="h-4" />
+                    </div>
+                  </ScrollArea>
+                </CardContent>
 
-              <CardFooter className="p-4 border-t border-white/5 bg-muted/30 backdrop-blur-md">
-                <div className="flex w-full items-center gap-2">
-                  <div className="flex-1 relative">
-                    <Input
-                      placeholder={isLoading ? "Please wait..." : "Message AI Scrape..."}
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      className="w-full bg-background/50 border-white/10 rounded-xl pr-10 h-10 ring-offset-emerald-500 focus-visible:ring-emerald-500/50"
-                      disabled={isLoading}
-                    />
-                    <Sparkles className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500/40 pointer-events-none" />
+                <CardFooter className="p-4 border-t border-white/5 bg-muted/30 backdrop-blur-md">
+                  <div className="flex w-full items-center gap-2">
+                    <div className="flex-1 relative">
+                      <Input
+                        placeholder={isLoading ? "Please wait..." : "Message AI Scrape..."}
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        className="w-full bg-background/50 border-white/10 rounded-xl pr-10 h-10 ring-offset-emerald-500 focus-visible:ring-emerald-500/50"
+                        disabled={isLoading}
+                      />
+                      <Sparkles className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500/40 pointer-events-none" />
+                    </div>
+                    <Button
+                      size="icon"
+                      onClick={() => handleSendMessage()}
+                      disabled={isLoading || !input.trim()}
+                      className="rounded-xl h-10 w-10 bg-emerald-600 hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-500/20"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <Button
-                    size="icon"
-                    onClick={() => handleSendMessage()}
-                    disabled={isLoading || !input.trim()}
-                    className="rounded-xl h-10 w-10 bg-emerald-600 hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-500/20"
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardFooter>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+                </CardFooter>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </ReactFlowProvider>
   );
 }
 

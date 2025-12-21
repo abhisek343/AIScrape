@@ -125,7 +125,7 @@ export async function GET(req: Request) {
     // Safely parse execution plan
     const executionPlanResult = safeJsonParse(workflow.executionPlan, {
       maxSize: 5 * 1024 * 1024, // 5MB limit
-      maxDepth: 20
+      maxDepth: 50
     });
 
     if (!executionPlanResult.success) {

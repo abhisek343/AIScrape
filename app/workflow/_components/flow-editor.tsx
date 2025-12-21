@@ -27,9 +27,7 @@ import { AppNode } from '@/types/appnode';
 
 import '@xyflow/react/dist/style.css';
 import { TaskRegistry } from '@/lib/workflow/task/registry';
-import dynamic from 'next/dynamic';
 
-const ChatbotWidget = dynamic(() => import('@/components/chatbot/chatbot-widget').then(m => m.ChatbotWidget), { ssr: false });
 
 // Move outside component to prevent recreation on every render
 const nodeTypes = {
@@ -48,10 +46,35 @@ const defaultEdgeOptions = {
   type: 'smoothstep',
 };
 
-export default function FlowEditor({ workflow, registerAutoLayout }: { workflow: Workflow; registerAutoLayout?: (fn: () => void) => void }) {
+export default function FlowEditor({
+  workflow,
+  registerAutoLayout,
+  onGetState
+}: {
+  workflow: Workflow;
+  registerAutoLayout?: (fn: () => void) => void;
+  onGetState?: (fn: () => { nodes: any[]; edges: any[]; viewport: any } | undefined) => void;
+}) {
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const { setViewport, screenToFlowPosition, updateNodeData, fitView } = useReactFlow();
+  const { setViewport, screenToFlowPosition, updateNodeData, fitView, toObject } = useReactFlow();
+
+  // Expose flow state getter to parent
+  useEffect(() => {
+    if (onGetState) {
+      // Create a safe getter that only works after component has mounted
+      const getState = () => {
+        try {
+          // Use toObject() to get the full serializable state including viewport
+          return toObject();
+        } catch (e) {
+          console.warn('FlowEditor: Could not get flow state:', e);
+          return undefined;
+        }
+      };
+      onGetState(getState);
+    }
+  }, [onGetState, toObject]);
 
   // Register auto layout function with parent
   useEffect(() => {

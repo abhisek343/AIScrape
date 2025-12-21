@@ -12,6 +12,8 @@ import { getCredentialsForUser } from '@/actions/credentials/get-credentials-for
 import { WorkflowExecutionTrigger, WorkflowExecutionStatus } from '@/types/workflow'; // Import WorkflowExecutionTrigger
 import { TaskRegistry } from '@/lib/workflow/task/registry';
 import { AiAutomationSpec, buildDefinitionFromAiSpec } from '@/lib/workflow/ai-automation';
+import { flowToExecutionPlan, FlowToExecutionPlanValidationError } from '@/lib/workflow/execution-plan';
+import { AppNode } from '@/types/appnode';
 
 // Initialize Google Generative AI
 if (!process.env.GOOGLE_API_KEY) {
@@ -51,7 +53,7 @@ function safeJsonParse<T = any>(str: string): T | null {
 
 // Moved AiAutomationSpec and builder to shared module
 
-async function waitForExecutionAndSummarize(executionId: string, timeoutMs = 90_000) {
+async function waitForExecutionAndSummarize(executionId: string, timeoutMs = 8_000) {
   const start = Date.now();
   while (true) {
     const exec = await prisma.workflowExecution.findUnique({
@@ -93,6 +95,52 @@ async function waitForExecutionAndSummarize(executionId: string, timeoutMs = 90_
   }
 }
 
+/**
+ * Analyze the current workflow definition for issues and return human-readable descriptions
+ */
+function analyzeWorkflowIssues(definition: string): string[] {
+  try {
+    const def = JSON.parse(definition);
+    const nodes = Array.isArray(def?.nodes) ? def.nodes as AppNode[] : [];
+    const edges = Array.isArray(def?.edges) ? def.edges : [];
+
+    // Empty workflow
+    if (nodes.length === 0) {
+      return ["Empty workflow: No nodes added yet. Start by dragging a 'Launch Browser' node from the sidebar."];
+    }
+
+    const { error } = flowToExecutionPlan(nodes, edges);
+    const issues: string[] = [];
+
+    if (error?.type === FlowToExecutionPlanValidationError.NO_ENTRY_POINT) {
+      issues.push("Missing entry point: Add a 'Launch Browser' node to start the workflow. This node must be the first step.");
+    }
+
+    if (error?.type === FlowToExecutionPlanValidationError.INVALID_INPUTS && error.invalidElements) {
+      for (const elem of error.invalidElements) {
+        // Find the node to get its label
+        const node = nodes.find((n: AppNode) => n.id === elem.nodeId);
+        const nodeType = node?.data?.type;
+        const taskDef = nodeType ? (TaskRegistry as any)[nodeType] : null;
+        const nodeLabel = taskDef?.label || nodeType || 'Unknown node';
+
+        // Format the missing inputs nicely
+        const inputsList = elem.inputs.join(', ');
+        if (elem.inputs.includes('Node is not reachable') || elem.inputs.includes('cycle')) {
+          issues.push(`'${nodeLabel}' is disconnected: Connect it to the main workflow flow with edges.`);
+        } else {
+          issues.push(`'${nodeLabel}' has missing inputs: ${inputsList}. Either fill in the value directly or connect an edge from another node's output.`);
+        }
+      }
+    }
+
+    return issues;
+  } catch (e) {
+    console.debug('analyzeWorkflowIssues failed:', e);
+    return [];
+  }
+}
+
 export async function POST(req: NextRequest) {
   if (!process.env.GOOGLE_API_KEY) {
     console.error('Chatbot API called, but GOOGLE_API_KEY is missing.');
@@ -106,7 +154,7 @@ export async function POST(req: NextRequest) {
 
   // Mode is no longer sent from client, AI will infer intent.
   // workflowId is now expected from the client if in a workflow context
-  const { message, workflowId: clientWorkflowId } = await req.json(); // Renamed to avoid conflict
+  const { message, workflowId: clientWorkflowId, currentDefinition } = await req.json(); // Added currentDefinition
 
   if (!message) {
     return new NextResponse('Message is required', { status: 400 });
@@ -216,15 +264,17 @@ export async function POST(req: NextRequest) {
     // Unified prompt section for AI capabilities (planning and acting)
 
     let workflowContextHeader = "";
-    if (clientWorkflowId && clientWorkflowId !== GENERAL_CHAT_PLACEHOLDER) { // Check if it's a specific workflow
+    if (clientWorkflowId && clientWorkflowId !== GENERAL_CHAT_PLACEHOLDER) {
       const currentWorkflow = await prisma.workflow.findUnique({
-        where: { id: clientWorkflowId, userId: userId }, // Ensure user owns the workflow
+        where: { id: clientWorkflowId, userId: userId },
         select: { name: true, description: true, definition: true }
       });
-      if (currentWorkflow) {
+      if (currentWorkflow || currentDefinition) { // Use client-side definition if provided
         let narrative = '';
         try {
-          const def = currentWorkflow.definition ? JSON.parse(currentWorkflow.definition) : null;
+          // Prefer currentDefinition (client-side) over currentWorkflow.definition (DB)
+          const defStr = currentDefinition || currentWorkflow?.definition;
+          const def = defStr ? JSON.parse(defStr) : null;
           const nodes = Array.isArray(def?.nodes) ? def.nodes : [];
           if (nodes.length > 0) {
             const steps: string[] = [];
@@ -240,11 +290,23 @@ export async function POST(req: NextRequest) {
                 : `${label} (${nodeType}). ${desc}`;
               steps.push(line.trim());
             }
-            narrative = `Workflow outline:\n${steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`;
+            narrative = `Current workflow state:\n${steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`;
           }
         } catch { }
-        const wfDesc = currentWorkflow.description || 'No description';
-        workflowContextHeader = `The user is currently working on a workflow named "${currentWorkflow.name}". Description: "${wfDesc}". ${narrative ? `\n\n${narrative}\n\n` : ''}Tailor your guidance to this specific workflow if the question seems related to it.\n\n`;
+        const wfName = currentWorkflow?.name || "Untitled Workflow";
+        const wfDesc = currentWorkflow?.description || 'No description';
+
+        // Analyze workflow for issues
+        const defStr = currentDefinition || currentWorkflow?.definition;
+        let issuesContext = '';
+        if (defStr) {
+          const issues = analyzeWorkflowIssues(defStr);
+          if (issues.length > 0) {
+            issuesContext = `\n\n**🚨 CURRENT ISSUES DETECTED IN WORKFLOW:**\n${issues.map((issue, idx) => `${idx + 1}. ${issue}`).join('\n')}\n\nWhen the user asks for help or seems confused, proactively mention these issues and guide them to fix them. Be specific about which node has the problem and exactly how to fix it.`;
+          }
+        }
+
+        workflowContextHeader = `The user is currently working on a workflow named "${wfName}". Description: "${wfDesc}". ${narrative ? `\n\n${narrative}\n\n` : ''}${issuesContext}\n\nTailor your guidance to this specific workflow if the question seems related to it.\n\n`;
       }
     }
 

@@ -7,15 +7,12 @@ import Logo from '@/components/logo';
 import { ModeToggle } from '@/components/thememode-toggle';
 import { Separator } from '@/components/ui/separator';
 
-// Dynamically import ChatbotWidget with SSR disabled
-const DynamicChatbotWidget = dynamic(() => import('@/components/chatbot/chatbot-widget').then(mod => mod.ChatbotWidget), {
-  ssr: false,
-});
+
 
 export default function WorkflowLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const showChatbot = pathname.startsWith('/workflow/editor/');
-  
+
   let workflowIdFromPath: string | undefined = undefined;
   if (showChatbot) {
     const pathSegments = pathname.split('/');
@@ -34,7 +31,6 @@ export default function WorkflowLayout({ children }: { children: React.ReactNode
         <Logo href="/home" iconSize={16} fontSize="text-xl" />
         <ModeToggle />
       </footer>
-      {/* {showChatbot && <DynamicChatbotWidget workflowId={workflowIdFromPath} />} */} {/* Temporarily commented out for debugging */}
     </div>
   );
 }

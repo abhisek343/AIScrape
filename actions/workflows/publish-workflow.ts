@@ -31,7 +31,7 @@ export async function publishWorkflow({ id, flowDefinition }: { id: string; flow
     throw new Error('workflow is not a draft');
   }
 
-  const parseResult = safeJsonParse(flowDefinition, { maxSize: 5 * 1024 * 1024, maxDepth: 20 });
+  const parseResult = safeJsonParse(flowDefinition, { maxSize: 5 * 1024 * 1024, maxDepth: 50 });
   if (!parseResult.success) {
     throw new Error(`Invalid flow definition: ${parseResult.error}`);
   }

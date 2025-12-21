@@ -62,7 +62,7 @@ export async function runWorkflow(params: RunWorkflowParams): Promise<WorkflowEx
     if (!workflow.executionPlan) {
       throw new Error('no execution plan found in published workflow');
     }
-    const execPlanParse = safeJsonParse(workflow.executionPlan, { maxSize: 5 * 1024 * 1024, maxDepth: 20 });
+    const execPlanParse = safeJsonParse(workflow.executionPlan, { maxSize: 5 * 1024 * 1024, maxDepth: 50 });
     if (!execPlanParse.success) {
       throw new Error(`Invalid execution plan: ${execPlanParse.error}`);
     }
@@ -73,7 +73,7 @@ export async function runWorkflow(params: RunWorkflowParams): Promise<WorkflowEx
     if (currentFlowDefinition) {
       definitionToUse = currentFlowDefinition;
     }
-    const flowParse = safeJsonParse(definitionToUse, { maxSize: 5 * 1024 * 1024, maxDepth: 20 });
+    const flowParse = safeJsonParse(definitionToUse, { maxSize: 5 * 1024 * 1024, maxDepth: 50 });
     if (!flowParse.success) {
       throw new Error(`Invalid flow definition: ${flowParse.error}`);
     }

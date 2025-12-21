@@ -1,23 +1,31 @@
 'use client';
 
-import { useRef, useState } from 'react'; // useRef for auto-layout hook
+import { useRef, useState, useCallback } from 'react';
 import { Workflow } from '@prisma/client';
-import { ReactFlowProvider } from '@xyflow/react';
+import { ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import dynamic from 'next/dynamic';
 
 import FlowEditor from '@/app/workflow/_components/flow-editor';
 import Topbar from '@/app/workflow/_components/topbar/topbar';
 import TaskMenu from '@/app/workflow/_components/task-menu';
 import { FlowValidationContextProvider } from '@/components/context/flow-validation-context';
-import { Sheet, SheetContent } from '@/components/ui/sheet'; // Added Sheet components
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 
 import { WorkflowStatus } from '@/types/workflow';
 
-const ChatbotWidget = dynamic(() => import('@/components/chatbot/chatbot-widget').then(m => m.ChatbotWidget), { ssr: false });
+import { ChatbotWidget } from '@/components/chatbot/chatbot-widget';
+
+// ... imports
+
+/** Wrapper component NO LONGER NEEDED - State is lifted from FlowEditor */
+// function ChatbotWithFlowState(...) { ... }
 
 export default function Editor({ workflow }: { workflow: Workflow }) {
   const autoLayout = useRef<null | (() => void)>(null);
   const [isTaskMenuOpenMobile, setIsTaskMenuOpenMobile] = useState(false);
+
+  // State to hold the getFlowState function provided by FlowEditor
+  const [getFlowState, setGetFlowState] = useState<(() => { nodes: any[]; edges: any[]; viewport: any } | undefined) | undefined>(undefined);
 
   return (
     <>
@@ -52,14 +60,26 @@ export default function Editor({ workflow }: { workflow: Workflow }) {
               </div>
 
               <div className="flex-1 h-full overflow-auto" style={{ height: '100%', width: '100%' }}> {/* Wrapper for FlowEditor to take remaining space and scroll */}
-                <FlowEditor workflow={workflow} registerAutoLayout={(fn) => (autoLayout.current = fn as any)} />
+                <FlowEditor
+                  workflow={workflow}
+                  registerAutoLayout={(fn) => (autoLayout.current = fn as any)}
+                  onGetState={setGetFlowState as any}
+                />
               </div>
             </section>
           </div>
+          {/* Render ChatbotWidget directly - getFlowState is now safe from state */}
+          <ChatbotWidget
+            workflowId={workflow.id}
+            onAutoLayout={() => {
+              if (autoLayout.current) {
+                autoLayout.current();
+              }
+            }}
+            getFlowState={getFlowState as any}
+          />
         </ReactFlowProvider>
       </FlowValidationContextProvider>
-      {/* Render ChatbotWidget at the absolute root level, outside all containers */}
-      <ChatbotWidget workflowId={workflow.id} />
     </>
   );
 }

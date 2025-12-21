@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { isRedirectError } from 'next/dist/client/components/redirect';
 import { toast } from 'sonner';
 import { createWorkflow } from '@/actions/workflows/create-workflow';
 import { buildDefinitionFromAiSpec, type AiAutomationSpec } from '@/lib/workflow/ai-automation';
@@ -431,11 +432,17 @@ export default function WorkflowGuides() {
           await createWorkflow(title, def, 'Created from guide', true);
           toast.success('Workflow created. Opening editor...', { id: 'guide-create' });
         } catch (error) {
+          if (isRedirectError(error)) {
+            throw error;
+          }
           console.error(error);
           toast.error('Failed to create workflow from guide', { id: 'guide-create' });
         }
       });
     } catch (err) {
+      if (isRedirectError(err)) {
+        throw err;
+      }
       console.error(err);
       toast.error('Failed to create workflow from guide', { id: 'guide-create' });
     }
