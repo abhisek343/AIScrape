@@ -9,9 +9,11 @@ export default function AppProviders({ children }: { children: React.ReactNode }
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000,
+        staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
+        gcTime: 30 * 60 * 1000, // 30 minutes cache retention
         refetchOnWindowFocus: false,
-        refetchOnReconnect: true,
+        refetchOnReconnect: false,
+        refetchOnMount: false, // Use cached data instantly
         retry: 1,
       },
       mutations: {

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, memo } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { Workflow } from '@prisma/client';
 import {
   ChevronRightIcon,
@@ -31,14 +32,25 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import TooltipWrapper from '@/components/tooltip-wrapper';
-import DeleteWorkflowDialog from '@/app/(dashboard)/workflows/_components/delete-workflow-dialog';
 import RunBtn from '@/app/(dashboard)/workflows/_components/run-btn';
-import SchedulerDialog from '@/app/(dashboard)/workflows/_components/scheduler-dialog';
 import {
   ExecutionStatusIndicator,
   ExecutionStatusLabel,
 } from '@/app/workflow/runs/[workflowId]/_components/execution-status-indicator';
-import DuplicateWorkflowDialog from '@/app/(dashboard)/workflows/_components/duplicate-workflow-dialog';
+
+// Dynamic imports for heavy dialog components - load on demand
+const DeleteWorkflowDialog = dynamic(
+  () => import('@/app/(dashboard)/workflows/_components/delete-workflow-dialog'),
+  { ssr: false }
+);
+const SchedulerDialog = dynamic(
+  () => import('@/app/(dashboard)/workflows/_components/scheduler-dialog'),
+  { ssr: false }
+);
+const DuplicateWorkflowDialog = dynamic(
+  () => import('@/app/(dashboard)/workflows/_components/duplicate-workflow-dialog'),
+  { ssr: false }
+);
 
 import { cn } from '@/lib/utils';
 import { WorkflowExecutionStatus, WorkflowStatus } from '@/types/workflow';
@@ -55,7 +67,8 @@ interface WorkflowCardProps {
   onToggleSelect?: (id: string) => void;
 }
 
-export default function WorkflowCard({
+// Memoized to prevent re-renders when parent state changes
+const WorkflowCard = memo(function WorkflowCard({
   workflow,
   isSelectMode = false,
   isSelected = false,
@@ -132,7 +145,7 @@ export default function WorkflowCard({
       <LastRunDetails workflow={workflow} />
     </Card>
   );
-}
+});
 
 function WorkflowActions({ workflowName, workflowId }: { workflowName: string; workflowId: string }) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -240,3 +253,5 @@ function LastRunDetails({ workflow }: { workflow: Workflow }) {
     </div>
   );
 }
+
+export default WorkflowCard;

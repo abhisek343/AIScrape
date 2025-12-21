@@ -1,7 +1,8 @@
 import { Suspense } from 'react';
 import { AlertCircle } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
+// Revalidate every 30 seconds for near-real-time data with caching
+export const revalidate = 30;
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';

@@ -45,6 +45,7 @@ export default function TaskMenu() {
             <TaskMenuBtn taskType={TaskType.EXTRACT_LIST} />
             <TaskMenuBtn taskType={TaskType.REGEX_EXTRACT} />
             <TaskMenuBtn taskType={TaskType.SCREENSHOT} />
+            <TaskMenuBtn taskType={TaskType.GENERATE_RANDOM_NUMBER} />
           </AccordionContent>
         </AccordionItem>
 

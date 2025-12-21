@@ -32,6 +32,7 @@ import { ScrollToElementTask } from '@/lib/workflow/task/scroll-to-element';
 import { DisplayDataTask } from '@/lib/workflow/task/display-data';
 import { StoreDataTask } from '@/lib/workflow/task/store-data';
 import { RetrieveDataTask } from '@/lib/workflow/task/retrieve-data';
+import { GenerateRandomNumberTask } from '@/lib/workflow/task/generate-random-number';
 
 type Registry = {
   [K in TaskType]: WorkflowTask & { type: K };
@@ -69,4 +70,5 @@ export const TaskRegistry: Registry = {
   DISPLAY_DATA: DisplayDataTask,
   STORE_DATA: StoreDataTask,
   RETRIEVE_DATA: RetrieveDataTask,
+  GENERATE_RANDOM_NUMBER: GenerateRandomNumberTask,
 };

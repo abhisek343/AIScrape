@@ -33,6 +33,7 @@ import { DelayExecutor } from '@/lib/workflow/executor/delay-executor';
 import { DisplayDataExecutor } from '@/lib/workflow/executor/display-data-executor';
 import { StoreDataExecutor } from '@/lib/workflow/executor/store-data-executor';
 import { RetrieveDataExecutor } from '@/lib/workflow/executor/retrieve-data-executor';
+import { GenerateRandomNumberExecutor } from '@/lib/workflow/executor/generate-random-number-executor';
 
 type ExecuterFn<T extends WorkflowTask> = (environment: ExecutionEnvironment<T>) => Promise<boolean>;
 
@@ -72,4 +73,5 @@ export const ExecutorRegistry: RegistryType = {
   DISPLAY_DATA: DisplayDataExecutor,
   STORE_DATA: StoreDataExecutor,
   RETRIEVE_DATA: RetrieveDataExecutor,
+  GENERATE_RANDOM_NUMBER: GenerateRandomNumberExecutor,
 };
