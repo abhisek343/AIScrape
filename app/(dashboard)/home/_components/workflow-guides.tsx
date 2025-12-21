@@ -322,7 +322,7 @@ export default function WorkflowGuides() {
         let lastOutput: string | undefined = undefined;
         let keyCode = 'A'.charCodeAt(0);
 
-        const addNode = (type: string, inputs?: Record<string,string>) => {
+        const addNode = (type: string, inputs?: Record<string, string>) => {
           const key = String.fromCharCode(keyCode);
           keyCode++;
           nodes.push({ key, type, inputs });
@@ -348,6 +348,7 @@ export default function WorkflowGuides() {
           else if (t.includes('EXTRACT_LIST')) { type = 'EXTRACT_LIST'; connectInput = 'Html'; newLastOutput = 'Items (JSON)'; }
           else if (t.includes('EXTRACT_ATTRIBUTES')) { type = 'EXTRACT_ATTRIBUTES'; connectInput = 'Html'; newLastOutput = 'Values (JSON)'; }
           else if (t.includes('EXTRACT_TEXT_FROM_ELEMENT')) { type = 'EXTRACT_TEXT_FROM_ELEMENT'; connectInput = 'Html'; newLastOutput = 'Extracted text'; }
+          else if (t.includes('EXTRACT_DATA_WITH_AI')) { type = 'EXTRACT_DATA_WITH_AI'; connectInput = 'Content'; newLastOutput = 'Extracted data'; }
           else if (t.includes('HTTP_REQUEST')) { type = 'HTTP_REQUEST'; /* no default connection */ newLastOutput = 'Response body'; }
           else if (t.includes('DELIVER_VIA_WEBHOOK')) { type = 'DELIVER_VIA_WEBHOOK'; connectInput = 'Body'; newLastOutput = undefined; }
           else if (t.includes('STORE_DATA')) { type = 'STORE_DATA'; connectInput = 'Data to Store'; newLastOutput = 'Stored Data'; }
@@ -371,8 +372,8 @@ export default function WorkflowGuides() {
           else if (t.includes('SET_COOKIES')) { type = 'SET_COOKIES'; connectInput = 'Web page'; newLastOutput = 'Web page'; }
           else if (t.includes('SET_LOCAL_STORAGE')) { type = 'SET_LOCAL_STORAGE'; connectInput = 'Web page'; newLastOutput = 'Web page'; }
 
-          if (!type) { 
-            continue; 
+          if (!type) {
+            continue;
           }
 
           // Add some default inputs for common nodes to make them executable
@@ -430,9 +431,13 @@ export default function WorkflowGuides() {
       const spec = parseToSpec(example);
       const def = buildDefinitionFromAiSpec(spec);
       startTransition(async () => {
-        const wf = await createWorkflow(title, def, 'Created from guide', false);
-        toast.success('Workflow created. Opening editor...', { id: 'guide-create' });
-        router.push(`/workflow/editor/${wf.id}`);
+        try {
+          await createWorkflow(title, def, 'Created from guide', true);
+          toast.success('Workflow created. Opening editor...', { id: 'guide-create' });
+        } catch (error) {
+          console.error(error);
+          toast.error('Failed to create workflow from guide', { id: 'guide-create' });
+        }
       });
     } catch (err) {
       console.error(err);

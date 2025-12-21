@@ -15,6 +15,7 @@ import {
   useEdgesState,
   useNodesState,
   useReactFlow,
+  MiniMap,
 } from '@xyflow/react';
 
 import NodeComponent from '@/app/workflow/_components/nodes/node-component';
@@ -248,8 +249,21 @@ export default function FlowEditor({ workflow, registerAutoLayout }: { workflow:
         onConnect={onConnect}
         isValidConnection={isValidConnection}
         onNodeDrag={onNodeDrag}
+        panOnScroll={true}
+        panOnScrollMode={'horizontal' as any} // Allow horizontal pan with scroll as well
+        selectionMode={'partial' as any}
+        selectionOnDrag={true}
       >
         <Controls position="top-left" fitViewOptions={fitViewOptions} showZoom={true} showFitView={true} showInteractive={true} />
+        <MiniMap
+          position="bottom-right"
+          className="!bg-background !border-muted !rounded-lg overflow-hidden shadow-2xl"
+          nodeColor="#10b981"
+          maskColor="rgba(0, 0, 0, 0.3)"
+          style={{ height: 120, width: 180 }}
+          zoomable
+          pannable
+        />
         <Background variant={BackgroundVariant.Dots} gap={20} size={2} />
       </ReactFlow>
       <ChatbotWidget workflowId={workflow.id} />
