@@ -1,6 +1,6 @@
 # AIScrape 🚀
 
-AIScrape is a powerful, intuitive platform that simplifies web scraping by enabling you to build, manage, and scale complex data extraction workflows with ease.
+AIScrape is a powerful, intuitive platform that simplifies web crawling by enabling you to build, manage, and scale complex data extraction workflows with ease.
 
 ## ✨ Features
 
