@@ -156,7 +156,7 @@ export default function FlowEditor({
     (e: React.DragEvent) => {
       e.preventDefault();
       const taskType = e.dataTransfer.getData('application/reactflow');
-      if (typeof taskType === undefined || !taskType) return;
+      if (!taskType || typeof taskType !== 'string') return;
 
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
 
@@ -235,6 +235,7 @@ export default function FlowEditor({
           if (outgoer.id === connection.source) return true;
           if (hasCycle(outgoer, visited)) return true;
         }
+        return false;
       };
 
       const detectedCycle = hasCycle(target);

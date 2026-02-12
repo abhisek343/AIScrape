@@ -5,7 +5,8 @@ import { ExecutionEnvironment } from '@/types/executor';
 const WEBHOOK_TIMEOUT = 30000; // 30 seconds
 const MAX_RESPONSE_SIZE = 10 * 1024 * 1024; // 10MB
 const FORBIDDEN_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
-const FORBIDDEN_PORTS = [22, 23, 25, 53, 80, 110, 143, 993, 995];
+// Forbidden ports for security (note: 80 and 443 are standard HTTP/HTTPS and are allowed)
+const FORBIDDEN_PORTS = [22, 23, 25, 53, 110, 143, 993, 995];
 
 function validateWebhookUrl(url: string): { valid: boolean; error?: string } {
   try {

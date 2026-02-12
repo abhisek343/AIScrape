@@ -21,14 +21,9 @@ function validateWebsiteUrl(url: string): { valid: boolean; error?: string } {
   try {
     const parsedUrl = new URL(url);
 
-    // Only allow HTTP and HTTPS
+    // Only allow HTTP and HTTPS (this check implicitly blocks all forbidden protocols)
     if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      return { valid: false, error: 'Only HTTP and HTTPS protocols are allowed' };
-    }
-
-    // Block forbidden protocols
-    if (FORBIDDEN_PROTOCOLS.includes(parsedUrl.protocol)) {
-      return { valid: false, error: `Protocol ${parsedUrl.protocol} is not allowed` };
+      return { valid: false, error: `Protocol ${parsedUrl.protocol} is not allowed. Only HTTP and HTTPS are permitted.` };
     }
 
     // Block forbidden hosts
@@ -171,7 +166,6 @@ export async function LaunchBrowserExecutor(
       browser = await Promise.race([
         puppeteer.connect({
           browserWSEndpoint: wsEndpoint,
-          timeout: BROWSER_TIMEOUT,
         }),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Browser connection timeout')), BROWSER_TIMEOUT)

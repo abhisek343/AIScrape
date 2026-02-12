@@ -33,7 +33,7 @@ export default function NodeParamField({
         },
       });
     },
-    [nodeId, updateNodeData, param.name, node?.data.inputs]
+    [nodeId, updateNodeData, param.name, node]
   );
 
   switch (param.type) {

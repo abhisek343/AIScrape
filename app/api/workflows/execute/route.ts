@@ -154,14 +154,14 @@ export async function GET(req: Request) {
         userId: workflow.userId,
         definition: workflow.definition,
         status: WorkflowExecutionStatus.PENDING,
-        startedAt: new Date(),
+        // Note: startedAt is intentionally left null until actual execution begins
         trigger: WorkflowExecutionTrigger.CRON,
         phases: {
           create: executionPlan.flatMap((phase) => {
             return phase.nodes.flatMap((node) => {
               return {
                 userId: workflow.userId,
-                status: ExecutionPhaseStatus.CREATED,
+                status: ExecutionPhaseStatus.PENDING, // Directly set to PENDING, skipping CREATED
                 number: phase.phase,
                 node: JSON.stringify(node),
                 name: TaskRegistry[node.data.type].label,
@@ -172,7 +172,8 @@ export async function GET(req: Request) {
       },
     });
 
-    // Update workflow's next run time
+    // Update workflow's next run time BEFORE triggering execution
+    // This prevents the race condition where a failing workflow gets retried indefinitely
     await prisma.workflow.update({
       where: { id: workflowId },
       data: { nextRunAt: nextRun }

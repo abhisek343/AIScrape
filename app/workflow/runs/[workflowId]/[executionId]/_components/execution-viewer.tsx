@@ -211,7 +211,12 @@ function ParameterViewer({
   subtitle: string;
   paramsJson: string | null;
 }) {
-  const params = paramsJson ? JSON.parse(paramsJson) : undefined;
+  let params: Record<string, unknown> | undefined;
+  try {
+    params = paramsJson ? JSON.parse(paramsJson) : undefined;
+  } catch {
+    params = undefined;
+  }
 
   return (
     <Card>

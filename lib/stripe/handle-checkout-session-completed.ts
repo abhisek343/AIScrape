@@ -25,27 +25,34 @@ export async function handleCheckoutSessionCompleted(event: Stripe.Checkout.Sess
   // Idempotency: avoid double granting on webhook retries
   const existing = await prisma.userPurchase.findFirst({ where: { stripeId: event.id } });
   if (!existing) {
-    await prisma.userBalance.upsert({
-      where: { userId },
-      create: {
-        userId,
-        credits: purchasedPack.credits,
-      },
-      update: {
-        credits: {
-          increment: purchasedPack.credits,
-        },
-      },
-    });
-
-    await prisma.userPurchase.create({
-      data: {
-        userId,
-        stripeId: event.id,
-        description: `${purchasedPack.name} - ${purchasedPack.credits} credits`,
-        amount: event.amount_total ?? 0,
-        currency: event.currency ?? 'usd',
-      },
-    });
+    try {
+      // Use transaction to ensure atomicity
+      await prisma.$transaction([
+        prisma.userBalance.upsert({
+          where: { userId },
+          create: {
+            userId,
+            credits: purchasedPack.credits,
+          },
+          update: {
+            credits: {
+              increment: purchasedPack.credits,
+            },
+          },
+        }),
+        prisma.userPurchase.create({
+          data: {
+            userId,
+            stripeId: event.id,
+            description: `${purchasedPack.name} - ${purchasedPack.credits} credits`,
+            amount: event.amount_total ?? 0,
+            currency: event.currency ?? 'usd',
+          },
+        }),
+      ]);
+    } catch (error) {
+      console.error('Failed to process checkout session:', error);
+      throw new Error('Transaction failed: credits not granted');
+    }
   }
 }

@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
 
       return Response.json({
         success: true,
-        data: dataList.map(item => ({
+        data: dataList.map((item: { storageKey: string; description: string | null; expiresAt: Date; createdAt: Date; updatedAt: Date }) => ({
           key: item.storageKey,
           description: item.description,
           expiresAt: item.expiresAt,

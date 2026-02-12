@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import mermaid from "mermaid";
-import { ReactFlowProvider, useReactFlow } from '@xyflow/react';
+import { ReactFlowProvider } from '@xyflow/react';
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +61,7 @@ export function ChatbotWidget({ workflowId, getFlowState, onAutoLayout }: Chatbo
 }
 
 function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWidgetProps) {
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -73,8 +74,14 @@ function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWid
   const router = useRouter();
   const { toast } = useToast();
 
-  // Safe hook usage - inside provider now
-  const flowInstance = useReactFlow();
+  // Prevent hydration mismatch by only rendering after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Note: We intentionally don't use useReactFlow() here because:
+  // 1. The component may be rendered outside of a valid ReactFlow context
+  // 2. All flow functionality is provided via getFlowState and onAutoLayout props
 
   useEffect(() => {
     if (mermaid) {
@@ -88,20 +95,22 @@ function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWid
   }, []);
 
   const runMermaid = useCallback(() => {
-    if (!mermaid) return;
-    setTimeout(() => {
+    if (!mermaid) return () => {};
+    const timeoutId = setTimeout(() => {
       try {
         // @ts-ignore
         mermaid.run({ querySelector: '.mermaid' });
       } catch (error) {
         console.error("Error running mermaid:", error);
       }
-    }, 300); // Increased delay for smoother render
+    }, 300);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
     scrollToBottom();
-    runMermaid();
+    const cleanup = runMermaid();
+    return cleanup;
   }, [messages, runMermaid, isOpen]);
 
   const scrollToBottom = () => {
@@ -213,8 +222,13 @@ function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWid
     }
   };
 
+  console.log("DEBUG: ChatbotWidget Rendered");
+
+  // Don't render anything until mounted to prevent hydration mismatch with AnimatePresence
+  if (!mounted) return null;
+
   return (
-    <div className="z-[100] fixed bottom-6 left-6 flex flex-col items-start gap-4">
+    <div className="z-[100] fixed bottom-6 left-[340px] flex flex-col items-start gap-4">
       <AnimatePresence mode="wait">
         {!isOpen && (
           <motion.button
@@ -238,9 +252,9 @@ function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWid
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 40, x: -40, filter: "blur(10px)" }}
-            animate={{ opacity: 1, scale: 1, y: 0, x: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, scale: 0.9, y: 40, x: -40, filter: "blur(10px)" }}
+            initial={{ opacity: 0, scale: 0.9, y: 20, x: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20, x: 20 }}
             transition={{ type: "spring", damping: 20, stiffness: 100 }}
             className={cn(
               "fixed inset-x-4 bottom-4 md:absolute md:inset-auto md:bottom-20 md:left-0 z-[101]",

@@ -37,25 +37,26 @@ export default function CredentialsPage() {
 }
 
 async function UserCredentials() {
-  const credentials = await getCredentialsForUser();
+  const data = await getCredentialsForUser();
 
-  if (!credentials) {
-    return <div>Something went wrong</div>;
+  if (!data) {
+    return (
+      <Alert variant="destructive">
+        <ShieldOffIcon className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>Something went wrong. Please try again later.</AlertDescription>
+      </Alert>
+    );
   }
+
+  const { credentials } = data;
 
   if (credentials.length === 0) {
     return (
-      <Card className="w-full p-4">
-        <div className="flex flex-col gap-4 items-center justify-center">
-          <div className="rounded-full bg-accent w-20 h-20 flex items-center justify-center">
-            <ShieldOffIcon size={40} className="stroke-primary" />
-          </div>
-          <div className="flex flex-col gap-1 text-center">
-            <p className="font-bold">No credentials created yet</p>
-            <p className="text-sm text-muted-foreground">Click the button below to create your first credential</p>
-          </div>
-
-          <CreateCredentialDialog triggerText="Create your first credential" />
+      <Card className="w-full p-4 flex justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <ShieldIcon className="h-8 w-8 stroke-muted-foreground" />
+          <p className="text-muted-foreground">No credentials found</p>
         </div>
       </Card>
     );
@@ -63,7 +64,7 @@ async function UserCredentials() {
 
   return (
     <div className="flex gap-2 flex-wrap">
-      {credentials.map((credential) => {
+      {credentials.map((credential: { id: string; name: string; createdAt: Date }) => {
         const createdAt = formatDistanceToNow(credential.createdAt, { addSuffix: true });
 
         return (

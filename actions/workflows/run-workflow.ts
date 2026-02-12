@@ -7,7 +7,7 @@ import prisma from '@/lib/prisma';
 import { safeJsonParse } from '@/lib/safe-json';
 import { flowToExecutionPlan } from '@/lib/workflow/execution-plan';
 import { TaskRegistry } from '@/lib/workflow/task/registry';
-import { executeWorkflow } from '@/lib/workflow/execute-workflow';
+import { submitWorkflowToQueue } from '@/lib/queue/workflow.queue';
 import {
   ExecutionPhaseStatus,
   WorkflowExecutionPlan,
@@ -78,6 +78,12 @@ export async function runWorkflow(params: RunWorkflowParams): Promise<WorkflowEx
       throw new Error(`Invalid flow definition: ${flowParse.error}`);
     }
     const flow = flowParse.data;
+    
+    // Validate structure before processing
+    if (!Array.isArray(flow?.nodes) || !Array.isArray(flow?.edges)) {
+      throw new Error('Invalid flow definition: nodes and edges must be arrays');
+    }
+    
     const result = flowToExecutionPlan(flow.nodes, flow.edges);
 
     if (result.error) {
@@ -96,7 +102,8 @@ export async function runWorkflow(params: RunWorkflowParams): Promise<WorkflowEx
       workflowId,
       userId,
       status: WorkflowExecutionStatus.PENDING,
-      startedAt: new Date(),
+      // Note: startedAt is intentionally left null until actual execution begins
+      // This maintains temporal consistency - startedAt reflects actual start time, not queue time
       trigger: trigger,
       definition: definitionToUse, // Use the potentially overridden definition
       phases: {
@@ -104,7 +111,7 @@ export async function runWorkflow(params: RunWorkflowParams): Promise<WorkflowEx
           return phase.nodes.flatMap((node) => {
             return {
               userId,
-              status: ExecutionPhaseStatus.CREATED,
+              status: ExecutionPhaseStatus.PENDING, // Directly set to PENDING, skipping CREATED
               number: phase.phase,
               node: JSON.stringify(node),
               name: TaskRegistry[node.data.type].label,
@@ -121,27 +128,21 @@ export async function runWorkflow(params: RunWorkflowParams): Promise<WorkflowEx
     throw new Error('Workflow execution not created');
   }
 
-  // Execute workflow in background with proper error handling
-  executeWorkflow(execution.id)
-    .then(() => {
-      console.log(`Workflow execution ${execution.id} completed successfully`);
-    })
-    .catch(async (error) => {
-      console.error(`Workflow execution ${execution.id} failed:`, error);
-
-      // Update execution status to failed if not already updated
-      try {
-        await prisma.workflowExecution.update({
-          where: { id: execution.id },
-          data: {
-            status: WorkflowExecutionStatus.FAILED,
-            completedAt: new Date(),
-          },
-        });
-      } catch (updateError) {
-        console.error(`Failed to update execution status for ${execution.id}:`, updateError);
-      }
+  // Submit workflow to queue instead of running directly
+  try {
+    await submitWorkflowToQueue(workflowId, execution.id);
+  } catch (error) {
+    console.error(`Failed to submit workflow to queue: ${error}`);
+    // Optional: Fail the execution immediately if queue submission fails
+    await prisma.workflowExecution.update({
+      where: { id: execution.id },
+      data: {
+        status: WorkflowExecutionStatus.FAILED,
+        completedAt: new Date(),
+      },
     });
+    throw new Error('Failed to submit workflow');
+  }
 
   if (shouldRedirect) {
     redirect(`/workflow/runs/${workflowId}/${execution.id}`);

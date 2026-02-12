@@ -10,7 +10,7 @@ import { getDashboardStats } from '@/actions/analytics/get-stats';
 import { getRecentWorkflows } from '@/actions/workflows/get-recent-workflows';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatDistanceToNow } from 'date-fns';
+import RelativeTime from './_components/relative-time';
 
 export default function DashboardPage() {
   return (
@@ -105,7 +105,7 @@ async function RecentWorkflows() {
 
   return (
     <div className="space-y-4">
-      {workflows.map(workflow => (
+      {workflows.map((workflow: { id: string; name: string; updatedAt: Date }) => (
         <Card key={workflow.id} className="hover:bg-accent/50 transition-colors">
           <CardHeader className="p-4">
             <div className="flex items-center justify-between">
@@ -114,7 +114,7 @@ async function RecentWorkflows() {
                   {workflow.name}
                 </Link>
                 <span className="text-xs text-muted-foreground">
-                  Updated {formatDistanceToNow(workflow.updatedAt)} ago
+                  Updated <RelativeTime date={workflow.updatedAt} />
                 </span>
               </div>
               <Link href={`/workflow/editor/${workflow.id}`}>

@@ -66,8 +66,9 @@ export async function SetLocalStorageExecutor(
       ([k, v]) => {
         try {
           localStorage.setItem(k, v);
-        } catch (error) {
-          throw new Error(`Failed to set localStorage: ${error.message}`);
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : String(error);
+          throw new Error(`Failed to set localStorage: ${msg}`);
         }
       },
       [key, value]

@@ -41,8 +41,10 @@ export async function AddPropertyToJsonExecutor(
       return false;
     }
 
-    // Validate property name
-    if (propertyName.includes('__') || propertyName === 'constructor' || propertyName === 'prototype') {
+    // Validate property name to prevent prototype pollution
+    // Block direct access to dangerous prototype properties
+    const dangerousProperties = ['__proto__', 'constructor', 'prototype'];
+    if (dangerousProperties.includes(propertyName)) {
       environment.log.error(`Forbidden property name: ${propertyName}`);
       return false;
     }

@@ -79,7 +79,8 @@ export async function ClickElementExecutor(
     }
 
     // Click with timeout and error handling
-    await page.click(selector, { timeout: 10000 });
+    await page.waitForSelector(selector, { timeout: 10000 });
+    await page.click(selector);
     
     environment.log.info('Element clicked successfully');
     return true;

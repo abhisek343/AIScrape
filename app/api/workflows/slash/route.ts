@@ -93,7 +93,7 @@ function buildExtractAttributeSpec(url: string, selector: string, attribute: str
 function buildExtractTextSpec(url: string, selector: string): AiAutomationSpec {
   const nodes = [
     ...specLaunchAndHtml(url),
-    { key: 'C', type: 'EXTRACT_TEXT_FROM_ELEMENT', inputs: { Html: '', Selector: selector } as any },
+    { key: 'C', type: 'EXTRACT_TEXT_FROM_ELEMENT', inputs: { Html: '', Selector: selector } },
   ];
   const edges = [
     { from: { node: 'A', output: 'Web page' }, to: { node: 'B', input: 'Web page' } },
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
     const page = m[3].trim();
     targetUrl = normalizeUrl(page);
     if (!targetUrl) {
-      return NextResponse.json({ ok: false, message: 'Please provide a valid URL.' }, { status: 200 });
+      return NextResponse.json({ ok: false, message: 'Please provide a valid URL.' }, { status: 400 });
     }
     spec = buildExtractAttributeSpec(targetUrl, selector, attribute);
   } else if ((m = raw.match(textRe))) {
@@ -150,25 +150,25 @@ export async function POST(req: NextRequest) {
     const page = m[2].trim();
     targetUrl = normalizeUrl(page);
     if (!targetUrl) {
-      return NextResponse.json({ ok: false, message: 'Please provide a valid URL.' }, { status: 200 });
+      return NextResponse.json({ ok: false, message: 'Please provide a valid URL.' }, { status: 400 });
     }
     spec = buildExtractTextSpec(targetUrl, selector);
   } else if ((m = raw.match(imagesRe))) {
     const page = m[1].trim();
     targetUrl = normalizeUrl(page);
     if (!targetUrl) {
-      return NextResponse.json({ ok: false, message: 'Please provide a valid URL.' }, { status: 200 });
+      return NextResponse.json({ ok: false, message: 'Please provide a valid URL.' }, { status: 400 });
     }
     spec = buildExtractImagesSpec(targetUrl);
   } else if ((m = raw.match(linksRe))) {
     const page = m[1].trim();
     targetUrl = normalizeUrl(page);
     if (!targetUrl) {
-      return NextResponse.json({ ok: false, message: 'Please provide a valid URL.' }, { status: 200 });
+      return NextResponse.json({ ok: false, message: 'Please provide a valid URL.' }, { status: 400 });
     }
     spec = buildExtractLinksSpec(targetUrl);
   } else {
-    return NextResponse.json({ ok: false, message: 'Unsupported slash command' }, { status: 200 });
+    return NextResponse.json({ ok: false, message: 'Unsupported slash command' }, { status: 400 });
   }
 
   const definition = buildDefinitionFromAiSpec(spec);

@@ -18,6 +18,7 @@ export async function getDashboardStats() {
         // Get Credits
         prisma.userBalance.findUnique({
             where: { userId },
+            select: { credits: true }
         }),
         // Get Workflows count
         prisma.workflow.findMany({
@@ -35,7 +36,7 @@ export async function getDashboardStats() {
         credits: userBalance?.credits || 0,
         workflows: workflows.length,
         executions: executions.length,
-        spent: executions.reduce((acc, exec) => acc + exec.creditsConsumed, 0)
+        spent: executions.reduce((acc: number, exec: { creditsConsumed: number }) => acc + exec.creditsConsumed, 0)
     };
 
     return stats;

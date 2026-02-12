@@ -42,7 +42,7 @@ export default function ExecutionsTable({
           </TableRow>
         </TableHeader>
         <TableBody className="gap-2 h-full overflow-auto">
-          {query.data.map((execution) => {
+          {query.data.map((execution: { id: string; workflowId: string; completedAt: Date | null; startedAt: Date | null; status: string; creditsConsumed: number; trigger: string }) => {
             const duration = datesToDurationString(execution.completedAt, execution.startedAt);
 
             const formattedStartedAt =

@@ -158,7 +158,8 @@ export async function ExtractDataWithAiExecutor(
       } catch (jsonError) {
         environment.log.error('Response from Gemini AI is not valid JSON, attempting to clean up...');
         // Try to extract JSON from the response if it's wrapped in markdown or other text
-        const jsonMatch = text.match(/\[.*\]|\{.*\}/s);
+        // Using [\s\S] instead of . with 's' flag to match across multiple lines
+        const jsonMatch = text.match(/\[[\s\S]*\]|\{[\s\S]*\}/);
         if (jsonMatch) {
           try {
             JSON.parse(jsonMatch[0]);

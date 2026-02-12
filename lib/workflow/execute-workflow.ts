@@ -61,14 +61,60 @@ export async function executeWorkflow(executionId: string, nextRunAt?: Date) {
 
   let creditsConsumed = 0;
   let executionFailed = false;
+
+  // Group phases by number to execute them in parallel batches
+  const phasesByNumber: Record<number, ExecutionPhase[]> = {};
   for (const phase of execution.phases) {
-    const phaseExecution = await executeWorkflowPhase(phase, environment, edges, execution.userId);
+    if (!phasesByNumber[phase.number]) {
+      phasesByNumber[phase.number] = [];
+    }
+    phasesByNumber[phase.number].push(phase);
+  }
 
-    creditsConsumed += phaseExecution.creditsConsumed;
+  const sortedPhaseNumbers = Object.keys(phasesByNumber)
+    .map(Number)
+    .sort((a, b) => a - b);
 
-    if (!phaseExecution.success) {
-      executionFailed = true;
-      break;
+  for (const phaseNumber of sortedPhaseNumbers) {
+    const phasesInGroup = phasesByNumber[phaseNumber];
+
+    // Validate that phases in the same group don't have dependencies on each other
+    // This ensures parallel execution is safe
+    const hasInterDependencies = phasesInGroup.some((phase: ExecutionPhase) => {
+      // Check if any edge points from one phase in this group to another
+      return edges.some(edge => 
+        edge.source === phase.id && 
+        phasesInGroup.some((p: ExecutionPhase) => p.id === edge.target)
+      );
+    });
+
+    if (hasInterDependencies) {
+      console.error(`Phase group ${phaseNumber} has inter-dependencies. Executing sequentially.`);
+      // Execute sequentially to respect dependencies
+      for (const phase of phasesInGroup) {
+        const result = await executeWorkflowPhase(phase, environment, edges, execution.userId);
+        creditsConsumed += result.creditsConsumed;
+        if (!result.success) {
+          executionFailed = true;
+          break;
+        }
+      }
+    } else {
+      // Execute all phases in this group concurrently (safe because no inter-dependencies)
+      const phaseExecutions = await Promise.all(
+        phasesInGroup.map(phase => executeWorkflowPhase(phase, environment, edges, execution.userId))
+      );
+
+      // Sum up credits consumed
+      const creditsFromBatch = phaseExecutions.reduce((acc, result) => acc + result.creditsConsumed, 0);
+      creditsConsumed += creditsFromBatch;
+
+      // Check if any phases in the batch failed
+      const hasFailure = phaseExecutions.some(result => !result.success);
+      if (hasFailure) {
+        executionFailed = true;
+        break;
+      }
     }
   }
 
@@ -79,36 +125,36 @@ export async function executeWorkflow(executionId: string, nextRunAt?: Date) {
 }
 
 async function initializeWorkflowExecution(executionId: string, workflowId: string, nextRunAt?: Date) {
-  await prisma.workflowExecution.update({
-    where: { id: executionId },
-    data: {
-      startedAt: new Date(),
-      status: WorkflowExecutionStatus.RUNNING,
-    },
-  });
-
-  await prisma.workflow.update({
-    where: { id: workflowId },
-    data: {
-      lastRunAt: new Date(),
-      lastRunStatus: WorkflowExecutionStatus.RUNNING,
-      lastRunId: executionId,
-      ...(nextRunAt && { nextRunAt }),
-    },
-  });
+  const now = new Date();
+  
+  // Use a transaction to ensure both updates succeed or fail together
+  // This maintains consistency between execution and workflow status
+  await prisma.$transaction([
+    prisma.workflowExecution.update({
+      where: { id: executionId },
+      data: {
+        startedAt: now,
+        status: WorkflowExecutionStatus.RUNNING,
+      },
+    }),
+    prisma.workflow.update({
+      where: { id: workflowId },
+      data: {
+        lastRunAt: now,
+        lastRunStatus: WorkflowExecutionStatus.RUNNING,
+        lastRunId: executionId,
+        ...(nextRunAt && { nextRunAt }),
+      },
+    }),
+  ]);
 }
 
-async function initializePhaseStatuses(execution: any) {
-  await prisma.executionPhase.updateMany({
-    where: {
-      id: {
-        in: execution.phases.map((phase: any) => phase.id),
-      },
-    },
-    data: {
-      status: ExecutionPhaseStatus.PENDING,
-    },
-  });
+// This function is now a no-op since phases are created with PENDING status directly
+// Keeping it for backward compatibility and in case future logic needs to reset phase statuses
+async function initializePhaseStatuses(_execution: any) {
+  // Phases are now created with PENDING status in run-workflow.ts and execute/route.ts
+  // This eliminates the wasteful CREATED -> PENDING transition
+  // No database operation needed
 }
 
 async function finalizeWorkflowExecution(
@@ -118,70 +164,44 @@ async function finalizeWorkflowExecution(
   creditsConsumed: number
 ) {
   const finalStatus = executionFailed ? WorkflowExecutionStatus.FAILED : WorkflowExecutionStatus.COMPLETED;
+  const now = new Date();
 
   try {
-    // Update execution status (this should always succeed)
-    await prisma.workflowExecution.update({
-      where: { id: executionId },
-      data: {
-        status: finalStatus,
-        completedAt: new Date(),
-        creditsConsumed,
-      },
+    // Use a transaction to ensure both execution and workflow status are updated atomically
+    // This prevents the invariant violation where execution shows COMPLETED but workflow shows RUNNING
+    await prisma.$transaction([
+      // Update execution status
+      prisma.workflowExecution.update({
+        where: { id: executionId },
+        data: {
+          status: finalStatus,
+          completedAt: now,
+          creditsConsumed,
+        },
+      }),
+      // Update workflow status - only if this is still the most recent execution
+      prisma.workflow.updateMany({
+        where: {
+          id: workflowId,
+          lastRunId: executionId, // Only update if no newer execution has started
+        },
+        data: {
+          lastRunStatus: finalStatus,
+          lastRunAt: now,
+        },
+      }),
+    ]);
+
+    // Check if the workflow was updated (if not, a newer execution has taken over)
+    const updatedWorkflow = await prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { lastRunId: true, lastRunStatus: true }
     });
 
-    // Update workflow status with retry logic for race conditions
-    const maxRetries = 3;
-    let retryCount = 0;
-
-    while (retryCount < maxRetries) {
-      try {
-        await prisma.workflow.update({
-          where: {
-            id: workflowId,
-            lastRunId: executionId,
-          },
-          data: {
-            lastRunStatus: finalStatus,
-            lastRunAt: new Date(),
-          },
-        });
-        break; // Success, exit retry loop
-      } catch (updateError: any) {
-        retryCount++;
-
-        if (retryCount >= maxRetries) {
-          // Log the error but don't fail the entire execution
-          console.warn(`Failed to update workflow status after ${maxRetries} retries:`, {
-            workflowId,
-            executionId,
-            error: updateError.message,
-            finalStatus
-          });
-
-          // Check if this is a genuine race condition (lastRunId mismatch)
-          try {
-            const currentWorkflow = await prisma.workflow.findUnique({
-              where: { id: workflowId },
-              select: { lastRunId: true }
-            });
-
-            if (currentWorkflow?.lastRunId !== executionId) {
-              console.info(`Workflow ${workflowId} has newer execution ${currentWorkflow?.lastRunId}, skipping status update for ${executionId}`);
-            } else {
-              console.error(`Unexpected error updating workflow status for ${workflowId}:`, updateError);
-            }
-          } catch (checkError) {
-            console.error(`Failed to check workflow status for ${workflowId}:`, checkError);
-          }
-          break;
-        }
-
-        // Wait before retry (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 100));
-      }
+    if (updatedWorkflow?.lastRunId !== executionId) {
+      console.info(`Workflow ${workflowId} has newer execution ${updatedWorkflow?.lastRunId}, status update for ${executionId} was skipped`);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Critical error in finalizeWorkflowExecution for ${executionId}:`, error);
     throw error; // Re-throw critical errors
   }
@@ -328,8 +348,14 @@ function setupEnvironmentForPhase(node: AppNode, environment: Environment, edges
       continue;
     }
 
+    // Validate sourceHandle exists before using it
+    if (!connectedEdge.sourceHandle) {
+      console.error('Edge missing source handle:', connectedEdge.id || `${connectedEdge.source}->${connectedEdge.target}`);
+      continue;
+    }
+
     const sourcePhase = environment.phases[connectedEdge.source];
-    const outputValue = sourcePhase?.outputs?.[connectedEdge.sourceHandle!];
+    const outputValue = sourcePhase?.outputs?.[connectedEdge.sourceHandle];
     if (outputValue === undefined || outputValue === null) {
       // Source not executed yet or no output produced
       console.error('Missing output for connected edge', connectedEdge.id || `${connectedEdge.source}->${connectedEdge.target}`);
@@ -367,49 +393,56 @@ async function decrementCredits(userId: string, amount: number, logCollector: Lo
   const maxRetries = 3;
   let retryCount = 0;
 
+  // Validate inputs
+  if (!userId || typeof userId !== 'string') {
+    logCollector.error('Invalid userId provided');
+    return false;
+  }
+  if (!amount || amount <= 0 || !Number.isFinite(amount)) {
+    logCollector.error('Invalid amount provided');
+    return false;
+  }
+
   while (retryCount < maxRetries) {
     try {
-      // Use a transaction to ensure atomicity
-      const result = await prisma.$transaction(async (tx: any) => {
-        // Atomic update: only decrement if credits >= amount
-        // updateMany returns { count: n }
-        const updateResult = await tx.userBalance.updateMany({
-          where: {
-            userId,
-            credits: { gte: amount }
-          },
-          data: {
-            credits: { decrement: amount }
-          }
-        });
+      // Use raw query with proper locking for true atomicity
+      // This prevents race conditions where multiple concurrent executions
+      // could pass the gte check before decrementing
+      const result = await prisma.$queryRaw`
+        UPDATE "UserBalance"
+        SET credits = credits - ${amount}
+        WHERE "userId" = ${userId} AND credits >= ${amount}
+        RETURNING credits
+      `;
 
-        if (updateResult.count === 0) {
-          throw new Error('Insufficient credits');
-        }
+      if (!result || (result as any[]).length === 0) {
+        logCollector.error('Insufficient balance');
+        return false;
+      }
 
-        // Return new balance for logging (optional, requires extra read if needed, or we just trust it worked)
-        // For logging purposes we can fetch it, but strictly speaking the atomic action is done.
-        return true;
-      });
-
-      logCollector.info(`Credits decremented successfully from atomic balance.`);
+      const remainingCredits = (result as any[])[0].credits;
+      logCollector.info(`Credits decremented successfully. Remaining: ${remainingCredits}`);
       return true;
 
     } catch (error: any) {
       retryCount++;
 
-      if (error.message === 'Insufficient credits') {
-        logCollector.error('Insufficient balance');
-        return false;
-      }
+      // Log detailed error for debugging
+      console.error(`Credit decrement attempt ${retryCount} failed:`, {
+        userId,
+        amount,
+        error: error.message,
+        code: error.code
+      });
 
       if (retryCount >= maxRetries) {
         logCollector.error(`Cannot decrement credits after ${maxRetries} attempts: ${error.message}`);
         return false;
       }
 
-      // Wait before retry (exponential backoff)
-      await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 100));
+      // Wait before retry (exponential backoff with jitter)
+      const delay = Math.pow(2, retryCount) * 100 + Math.random() * 100;
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 
@@ -426,7 +459,7 @@ async function cleanupEnvironment(environment: Environment) {
         const pages = await environment.browser.pages();
         for (const page of pages) {
           cleanupPromises.push(
-            page.close().catch((err) =>
+            page.close().catch((err: Error) =>
               console.error('Cannot close page, reason:', err)
             )
           );
@@ -443,12 +476,12 @@ async function cleanupEnvironment(environment: Environment) {
     if (environment.browser) {
       if (process.env.NODE_ENV !== 'production') {
         // Close locally in dev
-        await environment.browser.close().catch((err) =>
+        await environment.browser.close().catch((err: Error) =>
           console.error('Cannot close browser, reason:', err)
         );
       } else {
         // Disconnect from brightdata in prod
-        await environment.browser.disconnect().catch((err) =>
+        await environment.browser.disconnect().catch((err: Error) =>
           console.error('Cannot disconnect browser, reason:', err)
         );
       }
