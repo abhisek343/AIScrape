@@ -17,6 +17,13 @@ export const LaunchBrowserTask = {
       required: true,
       hideHandle: true,
     },
+    {
+      name: 'Timeout',
+      type: TaskParamType.STRING,
+      helperText: 'Timeout in milliseconds (default 30000)',
+      required: false,
+      hideHandle: true,
+    }
   ] as const,
   outputs: [
     {

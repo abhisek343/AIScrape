@@ -31,6 +31,13 @@ export async function WaitForElementExecutor(
 ): Promise<boolean> {
   const selector = environment.getInput('Selector');
   const visibility = environment.getInput('Visibility');
+  const timeoutInput = environment.getInput('Timeout');
+  const timeout = timeoutInput ? parseInt(timeoutInput) : DEFAULT_TIMEOUT;
+
+  if (isNaN(timeout) || timeout < 1000 || timeout > 300000) {
+    environment.log.error('Invalid timeout. Must be between 1000ms and 300000ms');
+    return false;
+  }
 
   try {
     const page = environment.getPage();
@@ -63,7 +70,7 @@ export async function WaitForElementExecutor(
     await page.waitForSelector(selector, {
       visible: visibility === 'visible',
       hidden: visibility === 'hidden',
-      timeout: DEFAULT_TIMEOUT
+      timeout: timeout
     });
 
     environment.log.info(`Element ${selector} became ${visibility}`);

@@ -62,41 +62,30 @@ export async function StoreDataExecutor(
     // Create unique key for this user
     const userStorageKey = `${userId}:${storageKey}`;
 
-    // Check if data already exists
-    const existingData = await prisma.workflowData.findFirst({
-      where: {
-        userId,
-        storageKey,
-      },
-    });
+    environment.log.info(`Storing data with key: ${storageKey}`);
 
-    if (existingData) {
-      environment.log.info(`Updating existing data for key: ${storageKey}`);
-      
-      // Update existing data
-      await prisma.workflowData.update({
-        where: { id: existingData.id },
-        data: {
-          data: dataToStore,
-          description,
-          expiresAt,
-          updatedAt: new Date(),
-        },
-      });
-    } else {
-      environment.log.info(`Storing new data with key: ${storageKey}`);
-      
-      // Store new data
-      await prisma.workflowData.create({
-        data: {
+    // Use upsert for atomic update/create to prevent race conditions
+    await prisma.workflowData.upsert({
+      where: {
+        userId_storageKey: {
           userId,
           storageKey,
-          data: dataToStore,
-          description,
-          expiresAt,
         },
-      });
-    }
+      },
+      update: {
+        data: dataToStore,
+        description,
+        expiresAt,
+        updatedAt: new Date(),
+      },
+      create: {
+        userId,
+        storageKey,
+        data: dataToStore,
+        description,
+        expiresAt,
+      },
+    });
 
     // Log storage summary
     const dataSize = dataToStore.length;

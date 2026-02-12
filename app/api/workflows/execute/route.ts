@@ -68,25 +68,6 @@ export async function GET(req: Request) {
       return Response.json({ error: 'Invalid workflowId format' }, { status: 400 });
     }
 
-    // Rate limiting
-    // Rate limiting (Database backed for serverless consistency)
-    const lastHour = new Date(Date.now() - 60 * 60 * 1000);
-    const executionCount = await prisma.workflowExecution.count({
-      where: {
-        workflowId,
-        startedAt: {
-          gte: lastHour,
-        },
-      },
-    });
-
-    if (executionCount >= MAX_EXECUTIONS_PER_HOUR) {
-      return Response.json(
-        { error: `Rate limit exceeded: ${MAX_EXECUTIONS_PER_HOUR} executions per hour allowed` },
-        { status: 429 }
-      );
-    }
-
     // Get workflow with validation
     const workflow = await prisma.workflow.findUnique({
       where: { id: workflowId },
@@ -100,6 +81,29 @@ export async function GET(req: Request) {
         creditsCost: true
       }
     });
+
+    if (!workflow) {
+      console.warn(`Workflow not found: ${workflowId}`);
+      return Response.json({ error: 'Workflow not found' }, { status: 404 });
+    }
+
+    // Rate limiting (Database backed for serverless consistency)
+    const lastHour = new Date(Date.now() - 60 * 60 * 1000);
+    const executionCount = await prisma.workflowExecution.count({
+      where: {
+        userId: workflow.userId, // Rate limit per USER, not per workflow
+        startedAt: {
+          gte: lastHour,
+        },
+      },
+    });
+
+    if (executionCount >= MAX_EXECUTIONS_PER_HOUR) {
+      return Response.json(
+        { error: `Rate limit exceeded: ${MAX_EXECUTIONS_PER_HOUR} executions per hour allowed` },
+        { status: 429 }
+      );
+    }
 
     if (!workflow) {
       console.warn(`Workflow not found: ${workflowId}`);

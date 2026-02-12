@@ -30,6 +30,13 @@ export const WaitForElementTask = {
         { label: 'Hidden', value: 'hidden' },
       ],
     },
+    {
+      name: 'Timeout',
+      type: TaskParamType.STRING,
+      helperText: 'Timeout in milliseconds (default 30000)',
+      required: false,
+      hideHandle: true,
+    }
   ] as const,
   outputs: [
     {

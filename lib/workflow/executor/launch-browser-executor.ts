@@ -114,6 +114,13 @@ export async function LaunchBrowserExecutor(
 
   try {
     const websiteUrl = environment.getInput('Website Url');
+    const timeoutInput = environment.getInput('Timeout');
+    const timeout = timeoutInput ? parseInt(timeoutInput) : PAGE_LOAD_TIMEOUT;
+
+    if (isNaN(timeout) || timeout < 1000 || timeout > 300000) {
+      environment.log.error('Invalid timeout. Must be between 1000ms and 300000ms');
+      return false;
+    }
 
     // Validate website URL
     const urlValidation = validateWebsiteUrl(websiteUrl);

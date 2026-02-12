@@ -32,37 +32,30 @@ export async function createWorkflow(
 
   let uniqueName = name;
   let counter = 1;
-  let existingWorkflow = await prisma.workflow.findUnique({
-    where: {
-      name_userId: {
-        name: uniqueName,
-        userId,
-      },
-    },
-  });
+  let result: Workflow | null = null;
 
-  while (existingWorkflow) {
-    uniqueName = `${name} (${counter})`;
-    counter++;
-    existingWorkflow = await prisma.workflow.findUnique({
-      where: {
-      name_userId: {
-        name: uniqueName,
-        userId,
-      },
-      },
-    });
+  while (!result) {
+    try {
+      result = await prisma.workflow.create({
+        data: {
+          userId,
+          status: WorkflowStatus.DRAFT,
+          name: uniqueName,
+          description,
+          definition,
+        },
+      });
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+        // Unique constraint violation, try next name
+        uniqueName = `${name} (${counter})`;
+        counter++;
+      } else {
+        // Other error, rethrow
+        throw error;
+      }
+    }
   }
-
-  const result = await prisma.workflow.create({
-    data: {
-      userId,
-      status: WorkflowStatus.DRAFT,
-      name: uniqueName, // Use the unique name
-      description,
-      definition,
-    },
-  });
 
   if (!result) {
     throw new Error('Failed to create workflow');
