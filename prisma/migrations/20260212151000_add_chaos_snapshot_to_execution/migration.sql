@@ -1,0 +1,7 @@
+ALTER TABLE "WorkflowExecution"
+  ADD COLUMN IF NOT EXISTS "chaosSnapshot" TEXT,
+  ADD COLUMN IF NOT EXISTS "chaosScore" INTEGER,
+  ADD COLUMN IF NOT EXISTS "chaosPredictedSuccess" DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS "chaosP95DurationMs" INTEGER,
+  ADD COLUMN IF NOT EXISTS "chaosFingerprint" TEXT,
+  ADD COLUMN IF NOT EXISTS "chaosGeneratedAt" TIMESTAMP(3);

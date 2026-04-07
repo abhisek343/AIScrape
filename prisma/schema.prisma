@@ -49,8 +49,17 @@ model WorkflowExecution {
   startedAt   DateTime?
   completedAt DateTime?
   definition  String    @default("{}")
+  inputs      String?
 
   creditsConsumed Int @default(0)
+
+  // Chaos Lab snapshot persisted per run for history/trend analytics
+  chaosSnapshot         String?
+  chaosScore            Int?
+  chaosPredictedSuccess Float?
+  chaosP95DurationMs    Int?
+  chaosFingerprint      String?
+  chaosGeneratedAt      DateTime?
 
   phases ExecutionPhase[]
 

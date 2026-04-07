@@ -7,6 +7,14 @@ import { Edge } from '@xyflow/react';
 import prisma from '@/lib/prisma';
 import { TaskRegistry } from '@/lib/workflow/task/registry';
 import { ExecutorRegistry } from '@/lib/workflow/executor/registry';
+import {
+  buildChaosReportFromDefinition,
+  persistChaosSnapshotForExecution,
+} from '@/lib/workflow/chaos-lab-storage';
+import {
+  buildPhaseNodeIdMap,
+  hasInterDependenciesInPhaseGroup,
+} from '@/lib/workflow/phase-dependencies';
 import { createLogCollector } from '@/lib/log';
 import { safeJsonParse, validateJsonSchema } from '@/lib/safe-json';
 import { ExecutionPhaseStatus, WorkflowExecutionStatus } from '@/types/workflow';
@@ -14,6 +22,22 @@ import { AppNode } from '@/types/appnode';
 import { Environment, ExecutionEnvironment } from '@/types/executor';
 import { TaskParamType } from '@/types/task';
 import { LogCollector } from '@/types/log';
+
+type PhaseExecutionResult = {
+  success: boolean;
+  creditsConsumed: number;
+};
+
+const FAILED_PHASE_RESULT: PhaseExecutionResult = {
+  success: false,
+  creditsConsumed: 0,
+};
+
+type CreditUpdateResult = Array<{ credits: number }>;
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export async function executeWorkflow(executionId: string, nextRunAt?: Date) {
   const execution = await prisma.workflowExecution.findUnique({
@@ -56,72 +80,86 @@ export async function executeWorkflow(executionId: string, nextRunAt?: Date) {
 
   const environment: Environment = { phases: {}, userId: execution.userId };
 
+  const chaosReport = buildChaosReportFromDefinition(execution.definition, 180);
+  if (chaosReport) {
+    await persistChaosSnapshotForExecution(execution.id, chaosReport);
+  }
+
   await initializeWorkflowExecution(execution.id, execution.workflowId, nextRunAt);
-  await initializePhaseStatuses(execution);
 
   let creditsConsumed = 0;
   let executionFailed = false;
+  let fatalError: unknown = null;
 
-  // Group phases by number to execute them in parallel batches
-  const phasesByNumber: Record<number, ExecutionPhase[]> = {};
-  for (const phase of execution.phases) {
-    if (!phasesByNumber[phase.number]) {
-      phasesByNumber[phase.number] = [];
-    }
-    phasesByNumber[phase.number].push(phase);
-  }
+  try {
+    // Group phases by number to execute them in parallel batches
+    const phases = execution.phases as ExecutionPhase[];
+    const phasesByNumber = phases.reduce<Record<number, ExecutionPhase[]>>((acc, phase) => {
+      (acc[phase.number] ??= []).push(phase);
+      return acc;
+    }, {});
 
-  const sortedPhaseNumbers = Object.keys(phasesByNumber)
-    .map(Number)
-    .sort((a, b) => a - b);
+    const sortedPhaseNumbers = Object.keys(phasesByNumber)
+      .map(Number)
+      .sort((a, b) => a - b);
+    const phaseNodeIdMap = buildPhaseNodeIdMap(phases);
 
-  for (const phaseNumber of sortedPhaseNumbers) {
-    const phasesInGroup = phasesByNumber[phaseNumber];
+    for (const phaseNumber of sortedPhaseNumbers) {
+      const phasesInGroup = phasesByNumber[phaseNumber];
 
-    // Validate that phases in the same group don't have dependencies on each other
-    // This ensures parallel execution is safe
-    const hasInterDependencies = phasesInGroup.some((phase: ExecutionPhase) => {
-      // Check if any edge points from one phase in this group to another
-      return edges.some(edge => 
-        edge.source === phase.id && 
-        phasesInGroup.some((p: ExecutionPhase) => p.id === edge.target)
+      // Validate that phases in the same group don't have dependencies on each other
+      // This ensures parallel execution is safe
+      const hasInterDependencies = hasInterDependenciesInPhaseGroup(
+        phasesInGroup,
+        edges,
+        phaseNodeIdMap
       );
-    });
+      const hasSharedBrowserContext = phaseGroupUsesSharedBrowserContext(phasesInGroup);
+      const executeSequentially = hasInterDependencies || hasSharedBrowserContext;
 
-    if (hasInterDependencies) {
-      console.error(`Phase group ${phaseNumber} has inter-dependencies. Executing sequentially.`);
-      // Execute sequentially to respect dependencies
-      for (const phase of phasesInGroup) {
-        const result = await executeWorkflowPhase(phase, environment, edges, execution.userId);
-        creditsConsumed += result.creditsConsumed;
-        if (!result.success) {
-          executionFailed = true;
-          break;
-        }
+      if (executeSequentially) {
+        console.warn(
+          `Phase group ${phaseNumber} will execute sequentially (inter-dependencies: ${hasInterDependencies}, shared browser context: ${hasSharedBrowserContext}).`
+        );
       }
-    } else {
-      // Execute all phases in this group concurrently (safe because no inter-dependencies)
-      const phaseExecutions = await Promise.all(
-        phasesInGroup.map(phase => executeWorkflowPhase(phase, environment, edges, execution.userId))
+
+      const groupResult = await executePhaseGroup(
+        phasesInGroup,
+        environment,
+        edges,
+        execution.userId,
+        executeSequentially
       );
+      creditsConsumed += groupResult.creditsConsumed;
 
-      // Sum up credits consumed
-      const creditsFromBatch = phaseExecutions.reduce((acc, result) => acc + result.creditsConsumed, 0);
-      creditsConsumed += creditsFromBatch;
-
-      // Check if any phases in the batch failed
-      const hasFailure = phaseExecutions.some(result => !result.success);
-      if (hasFailure) {
+      if (!groupResult.success) {
         executionFailed = true;
         break;
       }
     }
+  } catch (error: unknown) {
+    executionFailed = true;
+    fatalError = error;
+    console.error(`Workflow execution ${executionId} failed unexpectedly:`, error);
+  } finally {
+    try {
+      await finalizeWorkflowExecution(executionId, execution.workflowId, executionFailed, creditsConsumed);
+    } catch (error: unknown) {
+      console.error(`Failed to finalize workflow execution ${executionId}:`, error);
+      await markExecutionFailedFallback(executionId, execution.workflowId, creditsConsumed);
+      if (!fatalError) {
+        fatalError = error;
+      }
+    } finally {
+      await cleanupEnvironment(environment);
+    }
   }
 
-  await finalizeWorkflowExecution(executionId, execution.workflowId, executionFailed, creditsConsumed);
-  await cleanupEnvironment(environment);
-
   revalidatePath('/workflow/runs');
+
+  if (fatalError) {
+    throw fatalError instanceof Error ? fatalError : new Error(String(fatalError));
+  }
 }
 
 async function initializeWorkflowExecution(executionId: string, workflowId: string, nextRunAt?: Date) {
@@ -149,12 +187,69 @@ async function initializeWorkflowExecution(executionId: string, workflowId: stri
   ]);
 }
 
-// This function is now a no-op since phases are created with PENDING status directly
-// Keeping it for backward compatibility and in case future logic needs to reset phase statuses
-async function initializePhaseStatuses(_execution: any) {
-  // Phases are now created with PENDING status in run-workflow.ts and execute/route.ts
-  // This eliminates the wasteful CREATED -> PENDING transition
-  // No database operation needed
+async function executePhaseGroup(
+  phasesInGroup: ExecutionPhase[],
+  environment: Environment,
+  edges: Edge[],
+  userId: string,
+  executeSequentially: boolean
+): Promise<PhaseExecutionResult> {
+  if (phasesInGroup.length === 0) {
+    return { success: true, creditsConsumed: 0 };
+  }
+
+  if (executeSequentially) {
+    let creditsConsumed = 0;
+    for (const phase of phasesInGroup) {
+      const result = await executeWorkflowPhase(phase, environment, edges, userId);
+      creditsConsumed += result.creditsConsumed;
+      if (!result.success) {
+        return { success: false, creditsConsumed };
+      }
+    }
+    return { success: true, creditsConsumed };
+  }
+
+  const phaseExecutions = await Promise.all(
+    phasesInGroup.map((phase) => executeWorkflowPhase(phase, environment, edges, userId))
+  );
+
+  return {
+    success: phaseExecutions.every((result) => result.success),
+    creditsConsumed: phaseExecutions.reduce((acc, result) => acc + result.creditsConsumed, 0),
+  };
+}
+
+function phaseGroupUsesSharedBrowserContext(phasesInGroup: ExecutionPhase[]): boolean {
+  for (const phase of phasesInGroup) {
+    const parsedPhaseNode = safeJsonParse(phase.node, {
+      maxSize: 1024 * 1024,
+      maxDepth: 10,
+    });
+
+    if (!parsedPhaseNode.success) {
+      return true;
+    }
+
+    const nodeType = (parsedPhaseNode.data as { data?: { type?: unknown } })?.data?.type;
+    if (typeof nodeType !== 'string') {
+      return true;
+    }
+
+    const taskDefinition = TaskRegistry[nodeType as keyof typeof TaskRegistry];
+    if (!taskDefinition) {
+      return true;
+    }
+
+    const usesBrowserContext = [...taskDefinition.inputs, ...taskDefinition.outputs].some(
+      (param) => param.type === TaskParamType.BROWSER_INSTANCE
+    );
+    if (usesBrowserContext) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 async function finalizeWorkflowExecution(
@@ -201,9 +296,42 @@ async function finalizeWorkflowExecution(
     if (updatedWorkflow?.lastRunId !== executionId) {
       console.info(`Workflow ${workflowId} has newer execution ${updatedWorkflow?.lastRunId}, status update for ${executionId} was skipped`);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Critical error in finalizeWorkflowExecution for ${executionId}:`, error);
     throw error; // Re-throw critical errors
+  }
+}
+
+async function markExecutionFailedFallback(
+  executionId: string,
+  workflowId: string,
+  creditsConsumed: number
+) {
+  const now = new Date();
+
+  try {
+    await prisma.$transaction([
+      prisma.workflowExecution.update({
+        where: { id: executionId },
+        data: {
+          status: WorkflowExecutionStatus.FAILED,
+          completedAt: now,
+          creditsConsumed,
+        },
+      }),
+      prisma.workflow.updateMany({
+        where: {
+          id: workflowId,
+          lastRunId: executionId,
+        },
+        data: {
+          lastRunStatus: WorkflowExecutionStatus.FAILED,
+          lastRunAt: now,
+        },
+      }),
+    ]);
+  } catch (error: unknown) {
+    console.error(`Fallback status update failed for execution ${executionId}:`, error);
   }
 }
 
@@ -218,9 +346,7 @@ async function executeWorkflowPhase(phase: ExecutionPhase, environment: Environm
   });
 
   if (!nodeParseResult.success) {
-    logCollector.error(`Failed to parse phase node: ${nodeParseResult.error}`);
-    await finalizePhase(phase.id, false, {}, logCollector, 0);
-    return { success: false, creditsConsumed: 0 };
+    return failPhaseExecution(phase.id, logCollector, `Failed to parse phase node: ${nodeParseResult.error}`);
   }
 
   // Validate node structure
@@ -234,9 +360,7 @@ async function executeWorkflowPhase(phase: ExecutionPhase, environment: Environm
   });
 
   if (!nodeValidation.valid) {
-    logCollector.error(`Invalid node structure: ${nodeValidation.error}`);
-    await finalizePhase(phase.id, false, {}, logCollector, 0);
-    return { success: false, creditsConsumed: 0 };
+    return failPhaseExecution(phase.id, logCollector, `Invalid node structure: ${nodeValidation.error}`);
   }
 
   const node = nodeParseResult.data as AppNode;
@@ -255,19 +379,17 @@ async function executeWorkflowPhase(phase: ExecutionPhase, environment: Environm
 
   const taskDefinition = TaskRegistry[node.data.type];
   if (!taskDefinition) {
-    logCollector.error(`Unknown task type: ${node.data.type}`);
-    await finalizePhase(phase.id, false, {}, logCollector, 0);
-    return { success: false, creditsConsumed: 0 };
+    return failPhaseExecution(phase.id, logCollector, `Unknown task type: ${node.data.type}`);
   }
 
   const creditsRequired = taskDefinition.credits ?? 0;
 
-  let success = await decrementCredits(userId, creditsRequired, logCollector);
+  let success = creditsRequired === 0 || await decrementCredits(userId, creditsRequired, logCollector);
   const creditsConsumed = success ? creditsRequired : 0;
 
   if (success) {
     // We can execute the phase if the credits are sufficient
-    success = await executePhase(phase, node, environment, logCollector);
+    success = await executePhase(node, environment, logCollector);
   }
 
   const outputs = environment.phases[node.id].outputs;
@@ -276,10 +398,20 @@ async function executeWorkflowPhase(phase: ExecutionPhase, environment: Environm
   return { success, creditsConsumed };
 }
 
+async function failPhaseExecution(
+  phaseId: string,
+  logCollector: LogCollector,
+  message: string
+): Promise<PhaseExecutionResult> {
+  logCollector.error(message);
+  await finalizePhase(phaseId, false, {}, logCollector, 0);
+  return FAILED_PHASE_RESULT;
+}
+
 async function finalizePhase(
   phaseId: string,
   success: boolean,
-  outputs: any,
+  outputs: Record<string, string>,
   logCollector: LogCollector,
   creditsConsumed: number
 ) {
@@ -306,7 +438,6 @@ async function finalizePhase(
 }
 
 async function executePhase(
-  phase: ExecutionPhase,
   node: AppNode,
   environment: Environment,
   logCollector: LogCollector
@@ -319,7 +450,7 @@ async function executePhase(
 
   const executionEnvironment: ExecutionEnvironment<any> = createExecutionEnvironment(node, environment, logCollector);
 
-  return await runFn(executionEnvironment);
+  return runFn(executionEnvironment);
 }
 
 function setupEnvironmentForPhase(node: AppNode, environment: Environment, edges: Edge[]) {
@@ -335,7 +466,7 @@ function setupEnvironmentForPhase(node: AppNode, environment: Environment, edges
     if (input.type === TaskParamType.BROWSER_INSTANCE) continue;
 
     const inputValue = node.data.inputs[input.name];
-    if (inputValue) {
+    if (inputValue !== undefined && inputValue !== null) {
       environment.phases[node.id].inputs[input.name] = inputValue;
       continue;
     }
@@ -391,52 +522,51 @@ function createExecutionEnvironment(
 
 async function decrementCredits(userId: string, amount: number, logCollector: LogCollector) {
   const maxRetries = 3;
-  let retryCount = 0;
 
   // Validate inputs
   if (!userId || typeof userId !== 'string') {
     logCollector.error('Invalid userId provided');
     return false;
   }
-  if (!amount || amount <= 0 || !Number.isFinite(amount)) {
+  if (!Number.isFinite(amount) || amount < 0) {
     logCollector.error('Invalid amount provided');
     return false;
   }
+  if (amount === 0) {
+    return true;
+  }
 
-  while (retryCount < maxRetries) {
+  for (let retryCount = 1; retryCount <= maxRetries; retryCount++) {
     try {
       // Use raw query with proper locking for true atomicity
       // This prevents race conditions where multiple concurrent executions
       // could pass the gte check before decrementing
-      const result = await prisma.$queryRaw`
+      const result = await prisma.$queryRaw<CreditUpdateResult>`
         UPDATE "UserBalance"
         SET credits = credits - ${amount}
         WHERE "userId" = ${userId} AND credits >= ${amount}
         RETURNING credits
       `;
 
-      if (!result || (result as any[]).length === 0) {
+      if (result.length === 0) {
         logCollector.error('Insufficient balance');
         return false;
       }
 
-      const remainingCredits = (result as any[])[0].credits;
+      const remainingCredits = result[0].credits;
       logCollector.info(`Credits decremented successfully. Remaining: ${remainingCredits}`);
       return true;
 
-    } catch (error: any) {
-      retryCount++;
-
+    } catch (error: unknown) {
       // Log detailed error for debugging
       console.error(`Credit decrement attempt ${retryCount} failed:`, {
         userId,
         amount,
-        error: error.message,
-        code: error.code
+        error: getErrorMessage(error),
       });
 
       if (retryCount >= maxRetries) {
-        logCollector.error(`Cannot decrement credits after ${maxRetries} attempts: ${error.message}`);
+        logCollector.error(`Cannot decrement credits after ${maxRetries} attempts: ${getErrorMessage(error)}`);
         return false;
       }
 

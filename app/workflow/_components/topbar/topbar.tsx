@@ -1,7 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ChevronLeftIcon, MoreVerticalIcon, PanelLeftOpenIcon } from 'lucide-react'; // Added PanelLeftOpenIcon
+import {
+  ChevronLeftIcon,
+  FlaskConicalIcon,
+  MoreVerticalIcon,
+  PanelLeftOpenIcon,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +24,7 @@ import NavigationTabs from '@/app/workflow/_components/topbar/navigation-tabs';
 
 interface Props {
   onAutoLayout?: () => void;
+  onOpenChaosLab?: () => void;
   title: string;
   subtitle?: string;
   workflowId: string;
@@ -35,6 +41,7 @@ export default function Topbar({
   isPublished = false,
   onToggleTaskMenuMobile,
   onAutoLayout,
+  onOpenChaosLab,
 }: Props) {
   const router = useRouter();
 
@@ -83,6 +90,26 @@ export default function Topbar({
             </TooltipWrapper>
           </div>
         )}
+        {onOpenChaosLab && (
+          <div className="hidden sm:flex mr-2">
+            <TooltipWrapper content="Run Chaos Lab">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  try {
+                    onOpenChaosLab?.();
+                  } catch (error) {
+                    console.error('Error in onOpenChaosLab:', error);
+                  }
+                }}
+              >
+                <FlaskConicalIcon size={14} className="mr-1 text-cyan-500" />
+                Chaos Lab
+              </Button>
+            </TooltipWrapper>
+          </div>
+        )}
         {hideButtons === false && (
           <>
             {/* Desktop Buttons */}
@@ -105,6 +132,19 @@ export default function Topbar({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {onOpenChaosLab && (
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        onOpenChaosLab();
+                      }}
+                    >
+                      <div className="flex items-center gap-2 w-full px-2 py-1.5 text-sm cursor-pointer">
+                        <FlaskConicalIcon size={16} className="text-cyan-500" />
+                        <span>Chaos Lab</span>
+                      </div>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <ExecuteBtn workflowId={workflowId} isMobile />
                   </DropdownMenuItem>

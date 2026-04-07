@@ -3,8 +3,8 @@ import parser from 'cron-parser';
 
 import prisma from '@/lib/prisma';
 import { TaskRegistry } from '@/lib/workflow/task/registry';
-import { executeWorkflow } from '@/lib/workflow/execute-workflow';
-import { safeJsonParse, validateJsonSchema } from '@/lib/safe-json';
+import { submitWorkflowToQueue } from '@/lib/queue/workflow.queue';
+import { safeJsonParse } from '@/lib/safe-json';
 import {
   ExecutionPhaseStatus,
   WorkflowExecutionPlan,
@@ -105,11 +105,6 @@ export async function GET(req: Request) {
       );
     }
 
-    if (!workflow) {
-      console.warn(`Workflow not found: ${workflowId}`);
-      return Response.json({ error: 'Workflow not found' }, { status: 404 });
-    }
-
     // Validate workflow is published and has cron
     if (workflow.status !== WorkflowStatus.PUBLISHED) {
       console.warn(`Attempted to execute non-published workflow: ${workflowId}`);
@@ -183,18 +178,25 @@ export async function GET(req: Request) {
       data: { nextRunAt: nextRun }
     });
 
-    // Execute workflow in background with proper error handling
-    executeWorkflow(execution.id, nextRun)
-      .then(() => {
-        console.log(`Cron workflow execution ${execution.id} completed successfully`);
-      })
-      .catch((error) => {
-        console.error(`Cron workflow execution ${execution.id} failed:`, error);
+    try {
+      await submitWorkflowToQueue(workflowId, execution.id);
+    } catch (error: any) {
+      console.error(`Failed to submit cron execution ${execution.id} to queue:`, error);
+      await prisma.workflowExecution.update({
+        where: { id: execution.id },
+        data: {
+          status: WorkflowExecutionStatus.FAILED,
+          completedAt: new Date(),
+        },
       });
+
+      return Response.json({ error: 'Failed to submit workflow for execution' }, { status: 500 });
+    }
 
     return Response.json({
       success: true,
       executionId: execution.id,
+      queued: true,
       nextRun: nextRun.toISOString()
     }, { status: 200 });
 

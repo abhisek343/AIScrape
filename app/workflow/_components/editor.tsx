@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import FlowEditor from '@/app/workflow/_components/flow-editor';
 import Topbar from '@/app/workflow/_components/topbar/topbar';
 import TaskMenu from '@/app/workflow/_components/task-menu';
+import ChaosLabSheet from '@/app/workflow/_components/chaos-lab-sheet';
 import { FlowValidationContextProvider } from '@/components/context/flow-validation-context';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 
@@ -23,6 +24,7 @@ import { ChatbotWidget } from '@/components/chatbot/chatbot-widget';
 export default function Editor({ workflow }: { workflow: Workflow }) {
   const autoLayout = useRef<null | (() => void)>(null);
   const [isTaskMenuOpenMobile, setIsTaskMenuOpenMobile] = useState(false);
+  const [isChaosLabOpen, setIsChaosLabOpen] = useState(false);
 
   // State to hold the getFlowState function provided by FlowEditor
   const [getFlowState, setGetFlowState] = useState<(() => { nodes: any[]; edges: any[]; viewport: any } | undefined) | undefined>(undefined);
@@ -38,6 +40,7 @@ export default function Editor({ workflow }: { workflow: Workflow }) {
               workflowId={workflow.id}
               isPublished={workflow.status === WorkflowStatus.PUBLISHED}
               onToggleTaskMenuMobile={() => setIsTaskMenuOpenMobile((prev) => !prev)}
+              onOpenChaosLab={() => setIsChaosLabOpen(true)}
               onAutoLayout={() => {
                 if (autoLayout.current) {
                   autoLayout.current();
@@ -77,6 +80,12 @@ export default function Editor({ workflow }: { workflow: Workflow }) {
               }
             }}
             getFlowState={getFlowState as any}
+          />
+          <ChaosLabSheet
+            open={isChaosLabOpen}
+            onOpenChange={setIsChaosLabOpen}
+            workflowName={workflow.name}
+            getFlowState={getFlowState}
           />
         </ReactFlowProvider>
       </FlowValidationContextProvider>
