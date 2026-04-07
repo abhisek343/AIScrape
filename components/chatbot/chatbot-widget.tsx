@@ -142,6 +142,7 @@ function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWid
 
       // Prepare context if available
       let contextData = {};
+      let currentDefinition: string | undefined;
       if (getFlowState) {
         const state = getFlowState();
         if (state) {
@@ -150,12 +151,17 @@ function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWid
             edgeCount: state.edges.length,
             selectedNodes: state.nodes.filter((n: any) => n.selected).map((n: any) => n.id)
           };
+          currentDefinition = JSON.stringify({
+            nodes: state.nodes,
+            edges: state.edges,
+          });
         }
       }
 
       const payload = {
         message: text,
         workflowId,
+        currentDefinition,
         context: contextData // Send context to API
       };
 
@@ -430,4 +436,3 @@ const ChatMessageContent: React.FC<{ content: string }> = ({ content }) => {
     </>
   );
 };
-

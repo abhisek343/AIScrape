@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
+import { GENERAL_CHAT_PLACEHOLDER } from '@/lib/chatbot/constants';
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -39,21 +40,17 @@ export async function DELETE(req: NextRequest) {
         // If P2025, it means no such record, so history is "clear" for this context.
       }
     } else {
-      // Delete general chat session (workflowId is null)
-      // For nullable parts of a composite key, findFirst + delete by id is more reliable
-      const generalSession = await prisma.chatSession.findFirst({
+      // General chat history is stored with a placeholder workflow id.
+      // Also remove legacy null-keyed rows created by older versions.
+      await prisma.chatSession.deleteMany({
         where: {
-          userId: userId,
-          workflowId: null,
+          userId,
+          OR: [
+            { workflowId: GENERAL_CHAT_PLACEHOLDER },
+            { workflowId: null },
+          ],
         },
       });
-      if (generalSession) {
-        await prisma.chatSession.delete({
-          where: {
-            id: generalSession.id,
-          },
-        });
-      }
     }
     // If no session exists, it's effectively "deleted" or clear, so we can return success.
     

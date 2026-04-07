@@ -14,6 +14,7 @@ import { TaskRegistry } from '@/lib/workflow/task/registry';
 import { AiAutomationSpec, buildDefinitionFromAiSpec } from '@/lib/workflow/ai-automation';
 import { flowToExecutionPlan, FlowToExecutionPlanValidationError } from '@/lib/workflow/execution-plan';
 import { AppNode } from '@/types/appnode';
+import { GENERAL_CHAT_PLACEHOLDER, hasExplicitAutomationIntent } from '@/lib/chatbot/constants';
 
 // Initialize Google Generative AI
 if (!process.env.GOOGLE_API_KEY) {
@@ -55,12 +56,12 @@ async function waitForExecutionAndSummarize(executionId: string, timeoutMs = 8_0
   const start = Date.now();
   const POLL_INTERVAL = 800;
   const MAX_ITERATIONS = Math.ceil(timeoutMs / POLL_INTERVAL);
-  
+
   const TERMINAL_STATES = [
     WorkflowExecutionStatus.COMPLETED,
     WorkflowExecutionStatus.FAILED,
   ];
-  
+
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     const exec = await prisma.workflowExecution.findUnique({
       where: { id: executionId },
@@ -96,7 +97,7 @@ async function waitForExecutionAndSummarize(executionId: string, timeoutMs = 8_0
 
     await wait(POLL_INTERVAL);
   }
-  
+
   return { status: 'TIMEOUT', summary: 'The run is still in progress. Check runs page for live status.' } as const;
 }
 
@@ -140,14 +141,14 @@ function analyzeWorkflowIssues(definition: string): string[] {
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.GOOGLE_API_KEY) {
-    console.error('Chatbot API called, but GOOGLE_API_KEY is missing.');
-    return new NextResponse('Server configuration error: Chatbot is not configured.', { status: 500 });
-  }
-
   const { userId } = auth();
   if (!userId) {
     return new NextResponse('Unauthorized', { status: 401 });
+  }
+
+  if (!process.env.GOOGLE_API_KEY) {
+    console.error('Chatbot API called, but GOOGLE_API_KEY is missing.');
+    return new NextResponse('Server configuration error: Chatbot is not configured.', { status: 500 });
   }
 
   try {
@@ -157,7 +158,6 @@ export async function POST(req: NextRequest) {
       return new NextResponse('Message is required', { status: 400 });
     }
 
-    const GENERAL_CHAT_PLACEHOLDER = '___GENERAL_CHAT_SESSION___';
     const effectiveWorkflowId = clientWorkflowId || GENERAL_CHAT_PLACEHOLDER;
 
     // Retrieve user's chat session history
@@ -191,6 +191,7 @@ export async function POST(req: NextRequest) {
       **Scope**:
       - Only discuss AIScrape, web scraping, and automation.
       - Politely decline any off-topic or harmful requests.
+      - Automation is OFF by default. Only return executable automation JSON when the user explicitly asks to automate/create/update/run a workflow.
     `;
 
     const DetailedDescriptions: Record<string, string> = {
@@ -292,7 +293,7 @@ Maintain a helpful, safe, and project-focused conversation.
 
     // Initialize Gemini model with safety settings
     const model = genAI.getGenerativeModel({
-      model: 'gemini-pro',
+      model: 'gemini-3-flash-preview',
       safetySettings: [
         {
           category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -334,7 +335,8 @@ Maintain a helpful, safe, and project-focused conversation.
     }
 
     let automationSummary: string | null = null;
-    if (automationSpec) {
+    const automationRequested = hasExplicitAutomationIntent(message);
+    if (automationSpec && automationRequested) {
       if (jsonBlock) {
         const spec = safeJsonParse<AiAutomationSpec>(jsonBlock);
         if (spec && spec.workflow && Array.isArray(spec.workflow.nodes)) {
@@ -369,6 +371,9 @@ Maintain a helpful, safe, and project-focused conversation.
           }
         }
       }
+    }
+    else if (automationSpec && !automationRequested) {
+      text = "Automation mode is off by default, so no workflow was created, updated, or run. If you want execution, explicitly say: \"automation on\", \"automate\", \"create a workflow\", or \"update the workflow\".";
     }
 
     if (automationSummary) {
@@ -423,7 +428,12 @@ Maintain a helpful, safe, and project-focused conversation.
 
     return NextResponse.json({ response: text });
   } catch (error) {
-    console.error('Chatbot API error:', error);
+    console.error('Chatbot API error FULL DETAILS:', error);
+    // @ts-ignore
+    if (error.response) {
+      // @ts-ignore
+      console.error('Chatbot API error Response:', await error.response.text());
+    }
     return new NextResponse(`Internal Server Error: ${error instanceof Error ? error.message : String(error)}`, { status: 500 });
   }
 }
