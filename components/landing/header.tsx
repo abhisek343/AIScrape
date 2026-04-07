@@ -35,11 +35,11 @@ export default function Header() {
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.8, type: 'spring', bounce: 0.3 }}
-      className="fixed top-6 left-0 right-0 z-50 flex justify-center px-4"
+      className="fixed left-0 right-0 top-3 z-50 flex justify-center px-3 sm:top-6 sm:px-4"
     >
       <div
         className={cn(
-          "relative flex items-center justify-between w-full max-w-5xl px-4 py-3 sm:px-6",
+          "relative flex w-full max-w-5xl items-center justify-between gap-3 px-3 py-2.5 sm:px-6 sm:py-3",
           "bg-white/70 dark:bg-black/70 backdrop-blur-xl border border-white/20 dark:border-white/10",
           "rounded-2xl shadow-2xl shadow-black/5 dark:shadow-black/20",
           "transition-all duration-300 ease-in-out",
@@ -47,8 +47,8 @@ export default function Header() {
         )}
       >
         {/* Brand */}
-        <div className="flex-1 flex items-center justify-start">
-          <Logo iconSize={28} fontSize="text-xl" />
+        <div className="min-w-0 flex-1 flex items-center justify-start">
+          <Logo iconSize={24} fontSize="text-lg sm:text-xl" />
         </div>
 
         {/* Desktop Navigation */}
@@ -62,7 +62,7 @@ export default function Header() {
         </nav>
 
         {/* Actions */}
-        <div className="flex-1 flex items-center justify-end gap-3">
+        <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3">
           {isSignedIn ? (
             <>
               <Link href="/home" className="hidden sm:block">
@@ -83,7 +83,7 @@ export default function Header() {
                 <Button variant="ghost" size="sm" className="rounded-full text-slate-600 hover:text-emerald-600">Sign In</Button>
               </Link>
               <Link href="/sign-up">
-                <Button size="sm" className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30">
+                <Button size="sm" className="rounded-full bg-emerald-600 px-3 text-white shadow-lg shadow-emerald-500/30 hover:bg-emerald-700 sm:px-4">
                   Get Started
                 </Button>
               </Link>
@@ -93,7 +93,9 @@ export default function Header() {
           {/* Mobile Menu Toggle */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="md:hidden rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={isMenuOpen}
           >
             {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -107,9 +109,9 @@ export default function Header() {
             initial={{ opacity: 0, scale: 0.95, y: -20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
-            className="absolute top-full left-0 right-0 mt-2 px-4 flex justify-center w-full pointer-events-none"
+            className="pointer-events-none absolute left-0 right-0 top-full mt-2 flex w-full justify-center px-3 sm:px-4"
           >
-            <div className="w-full max-w-5xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-4 pointer-events-auto flex flex-col gap-2">
+            <div className="pointer-events-auto flex w-full max-w-5xl flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-800 dark:bg-slate-900">
               {navigation.map((item) => (
                 <Link
                   key={item.name}
@@ -132,6 +134,9 @@ export default function Header() {
                 <>
                   <Link href="/sign-in" onClick={() => setIsMenuOpen(false)}>
                     <Button className="w-full justify-start rounded-xl" variant="ghost">Sign In</Button>
+                  </Link>
+                  <Link href="/sign-up" onClick={() => setIsMenuOpen(false)}>
+                    <Button className="w-full rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">Get Started</Button>
                   </Link>
                 </>
               )}

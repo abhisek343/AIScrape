@@ -226,7 +226,7 @@ export default function Showcase() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: [0.25, 0.25, 0, 1] }}
-            className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 dark:text-white mb-6"
+            className="mb-6 text-3xl font-black tracking-tight text-slate-900 dark:text-white sm:text-4xl md:text-5xl lg:text-6xl"
           >
             Build dependable workflows.
             <span className="block bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 bg-clip-text text-transparent">
@@ -238,13 +238,13 @@ export default function Showcase() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-xl md:text-2xl text-slate-600 dark:text-slate-300 max-w-4xl mx-auto leading-relaxed font-normal tracking-normal"
+            className="mx-auto max-w-4xl text-base leading-relaxed tracking-normal text-slate-600 dark:text-slate-300 sm:text-lg md:text-xl lg:text-2xl"
           >
             Visual builder, AI-assisted extraction, and a managed runtime with Chromium, smart waiting, and automatic retries.
           </motion.p>
         </div>
 
-        <div className="grid gap-8 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-3 md:gap-8">
           {items.map((item, idx) => (
             <motion.div
               key={item.title}
@@ -263,21 +263,21 @@ export default function Showcase() {
                   {/* Background pattern */}
                   <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-200/20 to-transparent dark:from-emerald-800/20 rounded-full blur-3xl"></div>
                   
-                  <div className="relative p-8 md:p-10">
+                  <div className="relative p-6 sm:p-8 md:p-10">
                     <div className="inline-flex w-16 h-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/60 dark:to-emerald-800/40 text-emerald-700 dark:text-emerald-300 shadow-lg shadow-emerald-200/30 dark:shadow-emerald-900/30 group-hover:scale-110 transition-transform duration-300">
                       <item.icon className="h-8 w-8 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors duration-300" />
                     </div>
                     
-                    <h3 className="mt-6 text-2xl font-bold text-slate-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-300">
+                    <h3 className="mt-6 text-xl font-bold text-slate-900 transition-colors duration-300 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-300 sm:text-2xl">
                       {item.title}
                     </h3>
                     
-                    <p className="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed text-lg">
+                    <p className="mt-3 text-base leading-relaxed text-slate-600 dark:text-slate-400 sm:text-lg">
                       {item.desc}
                     </p>
                     
                     {/* Enhanced preview area with gradient and animations */}
-                    <div className="mt-8 h-40 rounded-2xl bg-gradient-to-br from-emerald-50/60 to-emerald-100/40 dark:from-emerald-950/40 dark:to-emerald-900/20 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-center relative overflow-hidden group-hover:shadow-lg group-hover:shadow-emerald-200/20 dark:group-hover:shadow-emerald-800/20 transition-all duration-500">
+                    <div className="relative mt-6 h-32 overflow-hidden rounded-2xl border border-emerald-200/60 bg-gradient-to-br from-emerald-50/60 to-emerald-100/40 transition-all duration-500 group-hover:shadow-lg group-hover:shadow-emerald-200/20 dark:border-emerald-800/40 dark:from-emerald-950/40 dark:to-emerald-900/20 dark:group-hover:shadow-emerald-800/20 sm:mt-8 sm:h-40">
                       {/* Animated background */}
                       <motion.div
                         className="absolute inset-0 bg-gradient-to-r from-emerald-400/10 via-transparent to-emerald-500/10"
@@ -286,7 +286,7 @@ export default function Showcase() {
                       />
                       
                       {/* Preview content */}
-                      <div className="relative z-10 text-emerald-600 dark:text-emerald-400 font-semibold text-lg">
+                      <div className="relative z-10 text-base font-semibold text-emerald-600 dark:text-emerald-400 sm:text-lg">
                         <motion.div
                           initial={{ opacity: 0.6 }}
                           whileInView={{ opacity: 1 }}
@@ -320,6 +320,5 @@ export default function Showcase() {
     </section>
   );
 }
-
 
 

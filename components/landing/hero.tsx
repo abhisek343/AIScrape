@@ -1,15 +1,56 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
-const WorkflowAnimation = dynamic(() => import('@/components/landing/workflow-animation'), { ssr: false });
+import WorkflowAnimation from '@/components/landing/workflow-animation';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Play, CheckCircle, Users, TrendingUp, Zap } from 'lucide-react';
+import { useRef, useEffect, useState } from 'react';
+
+// Magnetic button component
+function MagneticButton({ children, className }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  
+  const springConfig = { damping: 15, stiffness: 150 };
+  const xSpring = useSpring(x, springConfig);
+  const ySpring = useSpring(y, springConfig);
+  
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    x.set((e.clientX - centerX) * 0.15);
+    y.set((e.clientY - centerY) * 0.15);
+  };
+  
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+    setIsHovered(false);
+  };
+
+  return (
+    <motion.div
+      ref={ref}
+      style={{ x: xSpring, y: ySpring }}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={handleMouseLeave}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 export default function Hero() {
   return (
-    <section className="relative py-16 md:py-24 overflow-hidden">
+    <section className="relative overflow-hidden py-12 sm:py-16 md:py-24">
       {/* Enhanced Background with multiple gradients */}
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/20" />
       <div className="absolute inset-0 bg-gradient-to-tr from-emerald-600/5 via-transparent to-emerald-400/10" />
@@ -17,7 +58,7 @@ export default function Hero() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,theme(colors.emerald.400/0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_80%_20%,theme(colors.emerald.500/0.1),transparent_50%)]" />
 
       {/* Beautiful Floating Orb System */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 hidden overflow-hidden sm:block">
         {/* Large Premium Orbs */}
         {[
           { size: 'w-32 h-32', x: '10%', y: '20%', delay: 0 },
@@ -186,7 +227,7 @@ export default function Hero() {
       {/* Enhanced floating orbs with better animations */}
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute -top-20 -left-20 h-96 w-96 rounded-full bg-gradient-to-br from-emerald-300/20 to-emerald-600/10 blur-3xl"
+        className="pointer-events-none absolute -left-20 -top-20 hidden h-96 w-96 rounded-full bg-gradient-to-br from-emerald-300/20 to-emerald-600/10 blur-3xl sm:block"
         animate={{
           y: [0, 30, 0],
           x: [0, 15, 0],
@@ -197,7 +238,7 @@ export default function Hero() {
       />
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute top-10 right-10 h-80 w-80 rounded-full bg-gradient-to-bl from-emerald-200/25 to-emerald-500/15 blur-3xl"
+        className="pointer-events-none absolute right-10 top-10 hidden h-80 w-80 rounded-full bg-gradient-to-bl from-emerald-200/25 to-emerald-500/15 blur-3xl sm:block"
         animate={{
           y: [0, -25, 0],
           x: [0, -12, 0],
@@ -208,7 +249,7 @@ export default function Hero() {
       />
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute bottom-20 left-1/3 h-64 w-64 rounded-full bg-gradient-to-tr from-emerald-400/15 to-emerald-300/20 blur-3xl"
+        className="pointer-events-none absolute bottom-20 left-1/3 hidden h-64 w-64 rounded-full bg-gradient-to-tr from-emerald-400/15 to-emerald-300/20 blur-3xl sm:block"
         animate={{
           y: [0, 20, 0],
           x: [0, 10, 0],
@@ -217,14 +258,14 @@ export default function Hero() {
         transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
       />
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl text-center">
           {/* Enhanced Social proof badge */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-50/80 to-emerald-100/60 dark:from-emerald-950/60 dark:to-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded-full text-sm font-semibold mb-10 border border-emerald-200/60 dark:border-emerald-800/60 backdrop-blur-sm shadow-lg shadow-emerald-100/20 dark:shadow-emerald-900/20"
+            className="mb-8 inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-emerald-200/60 bg-gradient-to-r from-emerald-50/80 to-emerald-100/60 px-4 py-2 text-center text-xs font-semibold text-emerald-700 shadow-lg shadow-emerald-100/20 backdrop-blur-sm dark:border-emerald-800/60 dark:from-emerald-950/60 dark:to-emerald-900/40 dark:text-emerald-300 sm:mb-10 sm:px-6 sm:py-3 sm:text-sm dark:shadow-emerald-900/20"
           >
             <div className="flex items-center justify-center w-5 h-5 bg-emerald-500/20 rounded-full">
               <CheckCircle className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
@@ -254,7 +295,7 @@ export default function Hero() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.25, 0, 1] }}
-              className="text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-slate-900 dark:text-white leading-[0.95] mb-6"
+              className="mb-6 text-4xl font-black leading-[0.95] tracking-tight text-slate-900 dark:text-white sm:text-5xl md:text-6xl xl:text-7xl"
             >
               <span className="block">
                 Visual web data workflows
@@ -275,7 +316,7 @@ export default function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4, ease: [0.25, 0.25, 0, 1] }}
-            className="text-lg md:text-xl lg:text-2xl text-slate-600 dark:text-slate-300 max-w-4xl mx-auto leading-relaxed font-normal tracking-normal"
+            className="mx-auto max-w-4xl text-base leading-relaxed tracking-normal text-slate-600 dark:text-slate-300 sm:text-lg md:text-xl lg:text-2xl"
           >
             Design, run, and monitor scraping flows with a visual editor, retries, and audit logs.
             Trigger via API or schedule with cron. Stream results through webhooks.
@@ -285,38 +326,41 @@ export default function Hero() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.6, ease: [0.25, 0.25, 0, 1] }}
-            className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6"
+            className="mt-10 flex flex-col items-stretch justify-center gap-4 sm:mt-12 sm:flex-row sm:items-center sm:gap-6"
           >
-            <Link href="/sign-up">
-              <motion.div
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                className="relative group"
-              >
-                <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl blur opacity-70 group-hover:opacity-100 transition duration-300"></div>
-                <Button size="lg" className="relative bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-8 py-4 text-base font-semibold shadow-2xl shadow-emerald-500/25 transition-all duration-300 rounded-xl border border-emerald-500/20 overflow-hidden">
-                  {/* sheen */}
-                  <span className="pointer-events-none absolute inset-0 rounded-xl [mask-image:linear-gradient(120deg,transparent,rgba(255,255,255,.35),transparent)] translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
-                  Start free trial
-                  <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-200" />
-                </Button>
-              </motion.div>
+            <Link href="/sign-up" className="w-full sm:w-auto">
+              <MagneticButton className="w-full sm:w-auto">
+                <motion.div
+                  whileTap={{ scale: 0.98 }}
+                  className="group relative w-full"
+                >
+                  <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl blur opacity-70 group-hover:opacity-100 transition duration-300"></div>
+                  <Button size="lg" className="relative w-full rounded-xl border border-emerald-500/20 bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-4 text-base font-semibold text-white shadow-2xl shadow-emerald-500/25 transition-all duration-300 will-change-transform hover:from-emerald-700 hover:to-emerald-800 sm:w-auto sm:px-8">
+                    {/* sheen */}
+                    <span className="pointer-events-none absolute inset-0 rounded-xl [mask-image:linear-gradient(120deg,transparent,rgba(255,255,255,.35),transparent)] translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
+                    Start free trial
+                    <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-200" />
+                  </Button>
+                </motion.div>
+              </MagneticButton>
             </Link>
-            <Link href="#demo">
-              <motion.div
-                whileHover={{ scale: 1.02, y: -1 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Button size="lg" variant="outline" className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 hover:border-emerald-300 dark:hover:border-emerald-700 px-10 py-5 text-lg font-semibold shadow-xl shadow-slate-200/50 dark:shadow-slate-800/50 transition-all duration-300 rounded-xl text-slate-700 dark:text-slate-300">
-                  <Play className="mr-3 h-5 w-5" />
-                  Watch demo
-                </Button>
-              </motion.div>
+            <Link href="#demo" className="w-full sm:w-auto">
+              <MagneticButton className="w-full sm:w-auto">
+                <motion.div
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full"
+                >
+                  <Button size="lg" variant="outline" className="w-full rounded-xl border-2 border-emerald-200 bg-white/80 px-6 py-4 text-base font-semibold text-slate-700 shadow-xl shadow-slate-200/50 transition-all duration-300 will-change-transform hover:border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 dark:bg-slate-900/80 dark:text-slate-300 dark:shadow-slate-800/50 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/50 sm:w-auto sm:px-10 sm:py-5 sm:text-lg">
+                    <Play className="mr-3 h-5 w-5" />
+                    Watch demo
+                  </Button>
+                </motion.div>
+              </MagneticButton>
             </Link>
           </motion.div>
 
           {/* Animated Workflow Preview */}
-          <div className="mt-12">
+          <div className="mt-10 sm:mt-12">
             <WorkflowAnimation />
           </div>
 
@@ -325,7 +369,7 @@ export default function Hero() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.8, ease: [0.25, 0.25, 0, 1] }}
-            className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto"
+            className="mx-auto mt-12 grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6 md:mt-16 md:gap-8"
           >
             {[
               { icon: Users, value: "2,500+", label: "Active users", delay: 0 },
@@ -338,16 +382,16 @@ export default function Hero() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.6, delay: 0.8 + stat.delay, ease: [0.25, 0.25, 0, 1] }}
                 whileHover={{ scale: 1.05, y: -5 }}
-                className="group text-center p-8 bg-gradient-to-br from-white/80 via-white/60 to-emerald-50/30 dark:from-slate-900/80 dark:via-slate-800/60 dark:to-emerald-950/20 backdrop-blur-md rounded-2xl border border-emerald-100/60 dark:border-emerald-900/40 shadow-2xl shadow-emerald-100/20 dark:shadow-emerald-900/10 hover:shadow-3xl hover:shadow-emerald-200/30 dark:hover:shadow-emerald-800/20 transition-all duration-500 relative overflow-hidden"
+                className="group relative overflow-hidden rounded-2xl border border-emerald-100/60 bg-gradient-to-br from-white/80 via-white/60 to-emerald-50/30 p-6 text-center shadow-2xl shadow-emerald-100/20 transition-all duration-500 dark:border-emerald-900/40 dark:from-slate-900/80 dark:via-slate-800/60 dark:to-emerald-950/20 dark:shadow-emerald-900/10 dark:hover:shadow-emerald-800/20 hover:shadow-emerald-200/30 sm:p-8"
               >
                 {/* Gradient overlay on hover */}
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" />
 
                 <div className="relative z-10">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/60 dark:to-emerald-800/40 rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-emerald-200/30 dark:shadow-emerald-900/30">
+                  <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-200 shadow-lg shadow-emerald-200/30 transition-transform duration-300 group-hover:scale-110 dark:from-emerald-900/60 dark:to-emerald-800/40 dark:shadow-emerald-900/30 sm:mb-6 sm:h-16 sm:w-16">
                     <stat.icon className="h-8 w-8 text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-300" />
                   </div>
-                  <div className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-2 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-300">{stat.value}</div>
+                  <div className="mb-2 text-2xl font-black text-slate-900 transition-colors duration-300 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-300 sm:text-3xl md:text-4xl">{stat.value}</div>
                   <div className="text-slate-600 dark:text-slate-400 font-medium tracking-wide">{stat.label}</div>
                 </div>
               </motion.div>

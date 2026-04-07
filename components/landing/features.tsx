@@ -139,7 +139,7 @@ export default function Features() {
       
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
         {/* Enhanced Header */}
-        <div className="text-center mb-20">
+        <div className="mb-16 text-center md:mb-20">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -156,7 +156,7 @@ export default function Features() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: [0.25, 0.25, 0, 1] }}
-            className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 dark:text-white mb-6"
+            className="mb-6 text-3xl font-black tracking-tight text-slate-900 dark:text-white sm:text-4xl md:text-5xl lg:text-6xl"
           >
             Everything you need for
             <span className="block bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 bg-clip-text text-transparent">
@@ -168,14 +168,14 @@ export default function Features() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-xl md:text-2xl text-slate-600 dark:text-slate-300 max-w-4xl mx-auto leading-relaxed"
+            className="mx-auto max-w-4xl text-base leading-relaxed text-slate-600 dark:text-slate-300 sm:text-lg md:text-xl lg:text-2xl"
           >
             Build, deploy, and monitor web scraping workflows with <span className="font-semibold text-emerald-600 dark:text-emerald-400">enterprise-grade tools</span> designed for scale and reliability.
           </motion.p>
         </div>
 
         {/* Enhanced Main Features */}
-        <div className="grid gap-8 md:grid-cols-3 mb-24">
+        <div className="mb-20 grid gap-6 md:grid-cols-3 md:gap-8 md:mb-24">
           {mainFeatures.map((feature, index) => (
             <motion.div
               key={feature.title}
@@ -189,32 +189,32 @@ export default function Features() {
               {/* Gradient border effect */}
               <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/30 via-emerald-400/20 to-emerald-600/30 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm"></div>
               
-              <div className="relative p-10 bg-gradient-to-br from-white/90 via-white/80 to-emerald-50/30 dark:from-slate-900/90 dark:via-slate-800/80 dark:to-emerald-950/20 rounded-3xl border border-emerald-100/60 dark:border-emerald-900/40 shadow-2xl shadow-emerald-100/20 dark:shadow-emerald-900/10 backdrop-blur-sm overflow-hidden">
+              <div className="relative overflow-hidden rounded-3xl border border-emerald-100/60 bg-gradient-to-br from-white/95 via-white/90 to-emerald-50/50 p-6 shadow-2xl shadow-emerald-100/20 backdrop-blur-xl will-change-transform dark:border-emerald-900/40 dark:from-slate-900/95 dark:via-slate-800/90 dark:to-emerald-950/30 dark:shadow-emerald-900/10 sm:p-8 md:p-10">
                 {/* Background pattern */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-200/20 to-transparent dark:from-emerald-800/20 rounded-full blur-3xl"></div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-200/30 to-transparent dark:from-emerald-800/30 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-emerald-100/20 to-transparent dark:from-emerald-900/20 rounded-full blur-2xl"></div>
+                
+                {/* Glass highlight */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent dark:from-white/5 rounded-3xl pointer-events-none"></div>
                 
                 <div className="relative z-10">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-8 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/60 dark:to-emerald-800/40 shadow-lg shadow-emerald-200/30 dark:shadow-emerald-900/30 group-hover:scale-110 transition-transform duration-300">
+                  <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-200/50 bg-gradient-to-br from-emerald-100 to-emerald-200 shadow-lg shadow-emerald-200/30 transition-transform duration-300 group-hover:scale-110 dark:border-emerald-700/30 dark:from-emerald-900/60 dark:to-emerald-800/40 dark:shadow-emerald-900/30 sm:mb-8 sm:h-16 sm:w-16">
                     <feature.icon className="h-8 w-8 text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-300" />
                   </div>
                   
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-300">
+                  <h3 className="mb-4 text-xl font-bold text-slate-900 transition-colors duration-300 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-300 sm:text-2xl">
                     {feature.title}
                   </h3>
                   
-                  <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-lg">
+                  <p className="text-base leading-relaxed text-slate-600 dark:text-slate-400 sm:text-lg">
                     {feature.description}
                   </p>
                   
                   {/* Hover effect arrow */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -10 }}
-                    whileHover={{ opacity: 1, x: 0 }}
-                    className="flex items-center mt-6 text-emerald-600 dark:text-emerald-400 font-semibold"
-                  >
+                  <div className="flex items-center mt-6 text-emerald-600 dark:text-emerald-400 font-semibold opacity-0 group-hover:opacity-100 translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300">
                     <span className="text-sm">Learn more</span>
                     <ArrowRight className="ml-2 h-4 w-4" />
-                  </motion.div>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -227,7 +227,7 @@ export default function Features() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8, ease: [0.25, 0.25, 0, 1] }}
-          className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-20"
+          className="mb-16 grid gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 md:mb-20"
         >
           {additionalFeatures.map((feature, index) => (
             <motion.div
@@ -237,9 +237,9 @@ export default function Features() {
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.05 }}
               whileHover={{ y: -4, scale: 1.02 }}
-              className="group flex items-start gap-5 p-6 bg-gradient-to-br from-white/80 to-emerald-50/20 dark:from-slate-900/80 dark:to-emerald-950/10 backdrop-blur-sm rounded-2xl border border-emerald-100/40 dark:border-emerald-900/30 shadow-lg shadow-emerald-100/10 dark:shadow-emerald-900/5 hover:shadow-xl hover:shadow-emerald-200/20 dark:hover:shadow-emerald-800/10 transition-all duration-300"
+              className="group flex items-start gap-5 p-6 bg-gradient-to-br from-white/90 via-white/80 to-emerald-50/30 dark:from-slate-900/90 dark:via-slate-800/80 dark:to-emerald-950/20 backdrop-blur-xl rounded-2xl border border-emerald-100/50 dark:border-emerald-900/40 shadow-lg shadow-emerald-100/10 dark:shadow-emerald-900/5 hover:shadow-xl hover:shadow-emerald-200/30 dark:hover:shadow-emerald-800/20 transition-all duration-300 will-change-transform"
             >
-              <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/40 dark:to-emerald-800/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md shadow-emerald-200/20 dark:shadow-emerald-900/20">
+              <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/50 dark:to-emerald-800/30 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md shadow-emerald-200/30 dark:shadow-emerald-900/30 border border-emerald-200/40 dark:border-emerald-700/20">
                 <feature.icon className="h-6 w-6 text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-300" />
               </div>
               <div className="flex-1">

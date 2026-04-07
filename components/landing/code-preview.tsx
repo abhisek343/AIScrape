@@ -30,14 +30,14 @@ export default function CodePreview() {
 
   return (
     <section className="py-20 md:py-28">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 grid gap-10 md:grid-cols-2 items-center">
+      <div className="container mx-auto grid items-center gap-8 px-4 sm:px-6 lg:grid-cols-2 lg:gap-10 lg:px-8">
         <div>
           <motion.h2
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.45 }}
-            className="text-4xl md:text-5xl font-bold tracking-tight"
+            className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl"
           >
             Ship to production in minutes
           </motion.h2>
@@ -46,7 +46,7 @@ export default function CodePreview() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.45, delay: 0.1 }}
-            className="mt-4 text-lg text-muted-foreground"
+            className="mt-4 text-base text-muted-foreground sm:text-lg"
           >
             A straightforward API and webhooks make it simple to trigger workflows and consume results.
           </motion.p>
@@ -62,7 +62,7 @@ export default function CodePreview() {
           <motion.div
             aria-hidden
             ref={glowRef}
-            className="absolute -inset-1 rounded-xl blur [background:radial-gradient(400px_400px_at_var(--mx,_50%)_var(--my,_50%),theme(colors.emerald.400/.35),transparent_40%)]"
+            className="absolute -inset-1 rounded-xl blur [background:radial-gradient(320px_320px_at_var(--mx,_50%)_var(--my,_50%),theme(colors.emerald.400/.35),transparent_40%)] sm:[background:radial-gradient(400px_400px_at_var(--mx,_50%)_var(--my,_50%),theme(colors.emerald.400/.35),transparent_40%)]"
             animate={{ opacity: [0.4, 0.8, 0.4] }}
             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
           />
@@ -73,7 +73,7 @@ export default function CodePreview() {
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-300/60" />
               <span className="ml-2">request.http</span>
             </div>
-            <pre className="p-4 text-sm leading-6 text-emerald-100 bg-slate-900 max-h-[320px] overflow-auto">
+            <pre className="max-h-[320px] overflow-auto bg-slate-900 p-4 text-xs leading-6 text-emerald-100 sm:text-sm">
 {code}
             </pre>
           </div>
@@ -82,6 +82,5 @@ export default function CodePreview() {
     </section>
   );
 }
-
 
 
