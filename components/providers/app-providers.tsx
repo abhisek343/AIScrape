@@ -25,10 +25,9 @@ export default function AppProviders({ children }: { children: React.ReactNode }
   return (
     <QueryClientProvider client={queryClient}>
       <NextTopLoader color="#10b981" showSpinner={false} />
-      {/* Set the initial theme for new visitors to dark */}
       <ThemeProvider
         attribute="class"
-        defaultTheme="dark"
+        defaultTheme="system"
         enableSystem
       >
         {children}

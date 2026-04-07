@@ -2,11 +2,11 @@
 const nextConfig = {
   // Only use standalone output in production
   ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
-  eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true },
 
   // Performance optimizations - tree-shake heavy packages
   experimental: {
+    // Keep webpack in-process so compile errors are surfaced reliably.
+    webpackBuildWorker: false,
     optimizePackageImports: [
       'lucide-react',
       '@radix-ui/react-accordion',
@@ -17,7 +17,6 @@ const nextConfig = {
       '@radix-ui/react-select',
       'date-fns',
       'date-fns-tz',
-      'framer-motion',
       'recharts',
     ],
   },
@@ -34,9 +33,15 @@ const nextConfig = {
 
   // Aggressive caching headers for static assets
   async headers() {
+    // Avoid immutable dev caching on chunk files; it can break HMR and hydration.
+    if (process.env.NODE_ENV !== 'production') {
+      return [];
+    }
+
     return [
       {
-        source: '/:all*(js|css|svg|png|jpg|jpeg|webp|avif|woff|woff2)',
+        // Next static assets are content-hashed, safe to cache long-term.
+        source: '/_next/static/:path*',
         headers: [
           {
             key: 'Cache-Control',
