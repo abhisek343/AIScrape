@@ -2,6 +2,7 @@ import { ImageIcon } from 'lucide-react';
 
 import { TaskParamType, TaskType } from '@/types/task';
 import { WorkflowTask } from '@/types/workflow';
+import { webPageInput } from '@/lib/workflow/task/common';
 
 export const ScreenshotTask = {
   type: TaskType.SCREENSHOT,
@@ -10,7 +11,7 @@ export const ScreenshotTask = {
   isEntryPoint: false,
   credits: 2,
   inputs: [
-    { name: 'Web page', type: TaskParamType.BROWSER_INSTANCE, required: true },
+    webPageInput(),
     { name: 'Selector', type: TaskParamType.STRING, required: false },
     {
       name: 'Mode',
@@ -36,5 +37,3 @@ export const ScreenshotTask = {
   ] as const,
   outputs: [{ name: 'Image (base64)', type: TaskParamType.STRING }] as const,
 } satisfies WorkflowTask;
-
-

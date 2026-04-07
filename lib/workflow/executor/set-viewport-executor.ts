@@ -26,8 +26,3 @@ export async function SetViewportExecutor(
     return false;
   }
 }
-
-
-
-
-

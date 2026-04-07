@@ -2,6 +2,7 @@ import { Code2Icon } from 'lucide-react';
 
 import { TaskParamType, TaskType } from '@/types/task';
 import { WorkflowTask } from '@/types/workflow';
+import { webPageInput } from '@/lib/workflow/task/common';
 
 export const EvaluateJsTask = {
   type: TaskType.EVALUATE_JS,
@@ -10,13 +11,8 @@ export const EvaluateJsTask = {
   isEntryPoint: false,
   credits: 2,
   inputs: [
-    { name: 'Web page', type: TaskParamType.BROWSER_INSTANCE, required: true },
+    webPageInput(),
     { name: 'Code', type: TaskParamType.STRING, variant: 'textarea', required: true },
   ] as const,
   outputs: [{ name: 'Result (stringified)', type: TaskParamType.STRING }] as const,
 } satisfies WorkflowTask;
-
-
-
-
-

@@ -1,4 +1,5 @@
 import { WaitForElementTask } from '@/lib/workflow/task/wait-for-element';
+import { getRequiredInput, getRequiredPage, logExecutorError } from '@/lib/workflow/executor/common';
 import { ExecutionEnvironment } from '@/types/executor';
 
 // Security constants
@@ -29,8 +30,12 @@ function validateWaitForElementInputs(selector: string, visibility: string): { v
 export async function WaitForElementExecutor(
   environment: ExecutionEnvironment<typeof WaitForElementTask>
 ): Promise<boolean> {
-  const selector = environment.getInput('Selector');
-  const visibility = environment.getInput('Visibility');
+  const selector = getRequiredInput(environment, 'Selector', 'input->selector not defined');
+  if (!selector) return false;
+
+  const visibility = getRequiredInput(environment, 'Visibility', 'input->visibility not defined');
+  if (!visibility) return false;
+
   const timeoutInput = environment.getInput('Timeout');
   const timeout = timeoutInput ? parseInt(timeoutInput) : DEFAULT_TIMEOUT;
 
@@ -40,22 +45,8 @@ export async function WaitForElementExecutor(
   }
 
   try {
-    const page = environment.getPage();
-
-    if (!page) {
-      environment.log.error('No page found');
-      return false;
-    }
-
-    if (!selector) {
-      environment.log.error('input->selector not defined');
-      return false;
-    }
-
-    if (!visibility) {
-      environment.log.error('input->visibility not defined');
-      return false;
-    }
+    const page = getRequiredPage(environment);
+    if (!page) return false;
 
     // Validate inputs
     const validation = validateWaitForElementInputs(selector, visibility);
@@ -76,13 +67,11 @@ export async function WaitForElementExecutor(
     environment.log.info(`Element ${selector} became ${visibility}`);
     return true;
 
-  } catch (error: any) {
-    const selectorStr = selector || 'unknown';
-    const visibilityStr = visibility || 'unknown';
-    if (error.name === 'TimeoutError') {
-      environment.log.error(`Timeout waiting for element '${selectorStr}' to become ${visibilityStr}`);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      environment.log.error(`Timeout waiting for element '${selector}' to become ${visibility}`);
     } else {
-      environment.log.error(`Wait for element failed: ${error.message}`);
+      logExecutorError(environment, error, 'Wait for element failed');
     }
     return false;
   }

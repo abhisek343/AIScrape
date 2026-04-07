@@ -147,5 +147,3 @@ export async function EvaluateJsExecutor(
     return false;
   }
 }
-
-

@@ -120,8 +120,3 @@ export async function SetCookiesExecutor(
     return false;
   }
 }
-
-
-
-
-

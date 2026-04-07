@@ -20,8 +20,3 @@ export async function WaitForNavigationExecutor(
     return false;
   }
 }
-
-
-
-
-

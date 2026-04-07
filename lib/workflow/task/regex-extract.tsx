@@ -16,5 +16,3 @@ export const RegexExtractTask = {
   ] as const,
   outputs: [{ name: 'Matches (JSON)', type: TaskParamType.STRING }] as const,
 } satisfies WorkflowTask;
-
-

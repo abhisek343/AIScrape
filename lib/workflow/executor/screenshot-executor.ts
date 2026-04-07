@@ -1,5 +1,6 @@
 import { ExecutionEnvironment } from '@/types/executor';
 import { ScreenshotTask } from '@/lib/workflow/task/screenshot';
+import { getRequiredPage, logExecutorError } from '@/lib/workflow/executor/common';
 
 export async function ScreenshotExecutor(
   environment: ExecutionEnvironment<typeof ScreenshotTask>
@@ -10,11 +11,8 @@ export async function ScreenshotExecutor(
     const qualityStr = environment.getInput('Quality');
     const fullPageMode = environment.getInput('Mode') === 'fullpage';
 
-    const page = environment.getPage();
-    if (!page) {
-      environment.log.error('No page found');
-      return false;
-    }
+    const page = getRequiredPage(environment);
+    if (!page) return false;
 
     let buffer: Buffer;
     if (fullPageMode || !selector) {
@@ -40,13 +38,8 @@ export async function ScreenshotExecutor(
     const base64 = buffer.toString('base64');
     environment.setOutput('Image (base64)', base64);
     return true;
-  } catch (error: any) {
-    environment.log.error(error.message);
+  } catch (error: unknown) {
+    logExecutorError(environment, error);
     return false;
   }
 }
-
-
-
-
-

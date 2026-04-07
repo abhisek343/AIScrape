@@ -22,8 +22,3 @@ export async function SetUserAgentExecutor(
     return false;
   }
 }
-
-
-
-
-

@@ -2,6 +2,7 @@ import { MousePointerIcon } from 'lucide-react';
 
 import { TaskParamType, TaskType } from '@/types/task';
 import { WorkflowTask } from '@/types/workflow';
+import { webPageInput, webPageOutput } from '@/lib/workflow/task/common';
 
 export const HoverElementTask = {
   type: TaskType.HOVER_ELEMENT,
@@ -10,10 +11,8 @@ export const HoverElementTask = {
   isEntryPoint: false,
   credits: 1,
   inputs: [
-    { name: 'Web page', type: TaskParamType.BROWSER_INSTANCE, required: true },
+    webPageInput(),
     { name: 'Selector', type: TaskParamType.STRING, required: true },
   ] as const,
-  outputs: [{ name: 'Web page', type: TaskParamType.BROWSER_INSTANCE }] as const,
+  outputs: [webPageOutput()] as const,
 } satisfies WorkflowTask;
-
-

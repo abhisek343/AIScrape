@@ -26,15 +26,3 @@ export const HttpRequestTask = {
     { name: 'Response body', type: TaskParamType.STRING },
   ] as const,
 } satisfies WorkflowTask;
-
-
-
-
-
-
-
-
-
-
-
-

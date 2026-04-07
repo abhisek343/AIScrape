@@ -20,5 +20,3 @@ export async function WaitForNetworkIdleExecutor(
     return false;
   }
 }
-
-

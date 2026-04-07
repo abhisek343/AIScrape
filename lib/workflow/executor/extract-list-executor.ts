@@ -25,15 +25,3 @@ export async function ExtractListExecutor(
     return false;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-

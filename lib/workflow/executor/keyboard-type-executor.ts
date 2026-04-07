@@ -20,15 +20,3 @@ export async function KeyboardTypeExecutor(
     return false;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-

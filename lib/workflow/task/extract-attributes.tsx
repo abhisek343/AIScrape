@@ -16,5 +16,3 @@ export const ExtractAttributesTask = {
   ] as const,
   outputs: [{ name: 'Values (JSON)', type: TaskParamType.STRING }] as const,
 } satisfies WorkflowTask;
-
-

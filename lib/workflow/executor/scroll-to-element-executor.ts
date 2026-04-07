@@ -1,21 +1,16 @@
 import { ScrollToElementTask } from '@/lib/workflow/task/scroll-to-element';
+import { getRequiredInput, getRequiredPage, logExecutorError } from '@/lib/workflow/executor/common';
 import { ExecutionEnvironment } from '@/types/executor';
 
 export async function ScrollToElementExecutor(
   environment: ExecutionEnvironment<typeof ScrollToElementTask>
 ): Promise<boolean> {
   try {
-    const selector = environment.getInput('Selector');
-    if (!selector) {
-      environment.log.error('input->selector not defined');
-      return false;
-    }
+    const selector = getRequiredInput(environment, 'Selector', 'input->selector not defined');
+    if (!selector) return false;
 
-    const page = environment.getPage();
-    if (!page) {
-      environment.log.error('No page found');
-      return false;
-    }
+    const page = getRequiredPage(environment);
+    if (!page) return false;
 
     await page.evaluate((selector) => {
       const element = document.querySelector(selector);
@@ -27,8 +22,8 @@ export async function ScrollToElementExecutor(
     }, selector);
 
     return true;
-  } catch (error: any) {
-    environment.log.error(error.message);
+  } catch (error: unknown) {
+    logExecutorError(environment, error);
     return false;
   }
 }

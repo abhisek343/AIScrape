@@ -2,6 +2,7 @@ import { Edit3Icon } from 'lucide-react';
 
 import { TaskParamType, TaskType } from '@/types/task';
 import { WorkflowTask } from '@/types/workflow';
+import { webPageInput, webPageOutput } from '@/lib/workflow/task/common';
 
 export const FillInputTask = {
   type: TaskType.FILL_INPUT,
@@ -10,11 +11,7 @@ export const FillInputTask = {
   isEntryPoint: false,
   credits: 1,
   inputs: [
-    {
-      name: 'Web page',
-      type: TaskParamType.BROWSER_INSTANCE,
-      required: true,
-    },
+    webPageInput(),
     {
       name: 'Selector',
       type: TaskParamType.STRING,
@@ -26,10 +23,5 @@ export const FillInputTask = {
       required: true,
     },
   ] as const,
-  outputs: [
-    {
-      name: 'Web page',
-      type: TaskParamType.BROWSER_INSTANCE,
-    },
-  ] as const,
+  outputs: [webPageOutput()] as const,
 } satisfies WorkflowTask;

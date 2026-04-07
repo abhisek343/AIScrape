@@ -77,15 +77,3 @@ export async function RegexExtractExecutor(
     return false;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-

@@ -2,6 +2,7 @@ import { EyeIcon } from 'lucide-react';
 
 import { TaskParamType, TaskType } from '@/types/task';
 import { WorkflowTask } from '@/types/workflow';
+import { webPageInput, webPageOutput } from '@/lib/workflow/task/common';
 
 export const WaitForElementTask = {
   type: TaskType.WAIT_FOR_ELEMENT,
@@ -10,11 +11,7 @@ export const WaitForElementTask = {
   isEntryPoint: false,
   credits: 1,
   inputs: [
-    {
-      name: 'Web page',
-      type: TaskParamType.BROWSER_INSTANCE,
-      required: true,
-    },
+    webPageInput(),
     {
       name: 'Selector',
       type: TaskParamType.STRING,
@@ -38,10 +35,5 @@ export const WaitForElementTask = {
       hideHandle: true,
     }
   ] as const,
-  outputs: [
-    {
-      name: 'Web page',
-      type: TaskParamType.BROWSER_INSTANCE,
-    },
-  ] as const,
+  outputs: [webPageOutput()] as const,
 } satisfies WorkflowTask;

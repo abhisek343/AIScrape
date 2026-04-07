@@ -1,4 +1,5 @@
 import { ClickElementTask } from '@/lib/workflow/task/click-element';
+import { getRequiredInput, getRequiredPage, logExecutorError } from '@/lib/workflow/executor/common';
 import { ExecutionEnvironment } from '@/types/executor';
 
 // Security constants
@@ -49,18 +50,11 @@ export async function ClickElementExecutor(
   environment: ExecutionEnvironment<typeof ClickElementTask>
 ): Promise<boolean> {
   try {
-    const selector = environment.getInput('Selector');
-    const page = environment.getPage();
-    
-    if (!page) {
-      environment.log.error('No page found');
-      return false;
-    }
+    const selector = getRequiredInput(environment, 'Selector', 'input->selector not defined');
+    if (!selector) return false;
 
-    if (!selector) {
-      environment.log.error('input->selector not defined');
-      return false;
-    }
+    const page = getRequiredPage(environment);
+    if (!page) return false;
 
     // Validate selector
     const validation = validateSelector(selector);
@@ -85,8 +79,8 @@ export async function ClickElementExecutor(
     environment.log.info('Element clicked successfully');
     return true;
     
-  } catch (error: any) {
-    environment.log.error(`Click element failed: ${error.message}`);
+  } catch (error: unknown) {
+    logExecutorError(environment, error, 'Click element failed');
     return false;
   }
 }
