@@ -1,5 +1,7 @@
 # AIScrape 🚀
 
+[![CI/CD Pipeline](https://github.com/abhisek343/AIScrape/actions/workflows/ci.yml/badge.svg)](https://github.com/abhisek343/AIScrape/actions/workflows/ci.yml)
+
 AIScrape is a powerful, intuitive platform that simplifies web crawling by enabling you to build, manage, and scale complex data extraction workflows with ease.
 
 ## ✨ Features
