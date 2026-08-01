@@ -1,4 +1,7 @@
-import { assertPublicScrapeTarget, DnsLookup } from './target-policy';
+import { request as httpRequest } from 'node:http';
+import { request as httpsRequest } from 'node:https';
+import { DnsLookup, resolvePublicScrapeTarget, ResolvedScrapeTarget } from './target-policy';
+import { SCRAPE_USER_AGENT } from './user-agent';
 
 type FetchResponse = {
   ok: boolean;
@@ -6,7 +9,8 @@ type FetchResponse = {
   headers: { get(name: string): string | null };
   text(): Promise<string>;
 };
-type FetchLike = (input: string, init?: RequestInit) => Promise<FetchResponse>;
+type FetchInit = RequestInit & { dispatcher?: unknown };
+type FetchLike = (input: string, init?: FetchInit) => Promise<FetchResponse>;
 
 type RobotsRule = { directive: 'allow' | 'disallow'; pattern: string };
 type RobotsGroup = { agents: string[]; rules: RobotsRule[] };
@@ -64,7 +68,7 @@ function ruleMatches(path: string, pattern: string): boolean {
   return new RegExp(`^${body}${anchored ? '$' : ''}`).test(path);
 }
 
-export function isAllowedByRobots(robots: string, target: URL, userAgent = 'AIScrape-Bot'): boolean {
+export function isAllowedByRobots(robots: string, target: URL, userAgent = SCRAPE_USER_AGENT): boolean {
   const rules = matchingGroups(parseRobots(robots), userAgent).flatMap((group) => group.rules);
   const path = `${target.pathname || '/'}${target.search}`;
   const matches = rules.filter((rule) => ruleMatches(path, rule.pattern));
@@ -72,6 +76,64 @@ export function isAllowedByRobots(robots: string, target: URL, userAgent = 'AISc
   matches.sort((left, right) => right.pattern.length - left.pattern.length ||
     (left.directive === 'allow' ? -1 : 1));
   return matches[0].directive === 'allow';
+}
+
+function responseHeaders(headers: Record<string, string | string[] | undefined>): Headers {
+  const result = new Headers();
+  for (const [name, value] of Object.entries(headers)) {
+    if (value !== undefined) result.set(name, Array.isArray(value) ? value.join(', ') : value);
+  }
+  return result;
+}
+
+/**
+ * Make the socket use the address selected by resolvePublicScrapeTarget.
+ * Passing a lookup callback to the actual Node transport closes the
+ * validation/use race that exists when a hostname is checked and then passed
+ * to the default resolver again.
+ */
+function fetchPinnedUrl(target: URL, init: RequestInit, resolved: ResolvedScrapeTarget): Promise<FetchResponse> {
+  const transport = target.protocol === 'https:' ? httpsRequest : httpRequest;
+  const headers = new Headers(init.headers);
+  headers.set('User-Agent', SCRAPE_USER_AGENT);
+  const requestBody = init.body;
+
+  return new Promise((resolve, reject) => {
+    const request = transport({
+      hostname: target.hostname,
+      port: target.port || undefined,
+      path: `${target.pathname}${target.search}`,
+      method: init.method ?? 'GET',
+      headers: Object.fromEntries(headers.entries()),
+      lookup: (_hostname, _options, callback) => callback(null, resolved.address, resolved.family),
+      ...(target.protocol === 'https:' ? { servername: target.hostname } : {}),
+    }, (response) => {
+      const chunks: Buffer[] = [];
+      response.on('data', (chunk: Buffer | string) => chunks.push(Buffer.from(chunk)));
+      response.on('end', () => {
+        const body = Buffer.concat(chunks).toString('utf8');
+        resolve({
+          ok: (response.statusCode ?? 500) >= 200 && (response.statusCode ?? 500) < 300,
+          status: response.statusCode,
+          headers: responseHeaders(response.headers),
+          text: async () => body,
+        });
+      });
+    });
+    request.once('error', reject);
+    if (init.signal) {
+      const abort = () => request.destroy(new Error('Request aborted'));
+      if (init.signal.aborted) abort();
+      else init.signal.addEventListener('abort', abort, { once: true });
+    }
+    if (typeof requestBody === 'string' || Buffer.isBuffer(requestBody)) request.write(requestBody);
+    else if (requestBody instanceof Uint8Array) request.write(Buffer.from(requestBody));
+    else if (requestBody !== undefined && requestBody !== null) {
+      request.destroy(new Error('Unsupported request body type'));
+      return;
+    }
+    request.end();
+  });
 }
 
 /**
@@ -89,9 +151,11 @@ export async function fetchPublicUrl(
   let current = new URL(initialUrl.toString());
 
   for (let redirects = 0; redirects <= maxRedirects; redirects += 1) {
-    const targetError = await assertPublicScrapeTarget(current, { lookup: options.lookup });
-    if (targetError) throw new Error(targetError);
-    const response = await fetchImpl(current.toString(), { ...init, redirect: 'manual' });
+    const resolved = await resolvePublicScrapeTarget(current, { lookup: options.lookup });
+    if (typeof resolved === 'string') throw new Error(resolved);
+    const response = options.fetchImpl
+      ? await fetchImpl(current.toString(), { ...init, redirect: 'manual' })
+      : await fetchPinnedUrl(current, { ...init, redirect: 'manual' }, resolved);
     const location = response.headers.get('location');
     const isRedirect = !!response.status && response.status >= 300 && response.status < 400 && !!location;
     if (!isRedirect) return response;
@@ -113,7 +177,9 @@ export async function assertRobotsAllowed(
       signal: AbortSignal.timeout(5_000),
     }, { fetchImpl, lookup });
     if (!response.ok) return mode === 'strict' ? 'Could not retrieve robots.txt' : null;
-    return isAllowedByRobots(await response.text(), target) ? null : 'robots.txt disallows this target path';
+    return isAllowedByRobots(await response.text(), target, SCRAPE_USER_AGENT)
+      ? null
+      : 'robots.txt disallows this target path';
   } catch {
     return mode === 'strict' ? 'Could not retrieve robots.txt' : null;
   }

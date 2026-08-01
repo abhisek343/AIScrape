@@ -1,4 +1,4 @@
-import { assertPublicScrapeTarget, isBlockedAddress, validateScrapeTarget } from './target-policy';
+import { assertPublicScrapeTarget, isBlockedAddress, resolvePublicScrapeTarget, validateScrapeTarget } from './target-policy';
 
 describe('scrape target policy', () => {
   it.each(['file:///etc/passwd', 'http://127.0.0.1:3000', 'http://10.0.0.1', 'http://169.254.169.254/latest/meta-data'])
@@ -22,5 +22,11 @@ describe('scrape target policy', () => {
     await expect(assertPublicScrapeTarget('https://public.example', {
       lookup: async () => [{ address: '93.184.216.34', family: 4 }, { address: '2606:2800:220:1:248:1893:25c8:1946', family: 6 }],
     })).resolves.toBeNull();
+  });
+
+  it('returns the public address that the transport must pin', async () => {
+    await expect(resolvePublicScrapeTarget('https://public.example', {
+      lookup: async () => [{ address: '93.184.216.34', family: 4 }],
+    })).resolves.toMatchObject({ address: '93.184.216.34', family: 4 });
   });
 });

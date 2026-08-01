@@ -11,6 +11,11 @@ const BLOCKED_HOSTS = new Set(['localhost', 'localhost.localdomain', 'ip6-localh
 
 export type DnsRecord = { address: string; family: 4 | 6 };
 export type DnsLookup = (hostname: string) => Promise<DnsRecord[]>;
+export type ResolvedScrapeTarget = {
+  url: URL;
+  address: string;
+  family: 4 | 6;
+};
 
 const defaultLookup: DnsLookup = async (hostname) =>
   (await dnsLookup(hostname, { all: true, verbatim: true })) as DnsRecord[];
@@ -95,25 +100,37 @@ export function validateScrapeTarget(rawUrl: string, allowedHosts = process.env.
   return null;
 }
 
-/** Resolve and reject any non-public answer. Re-run for each request/redirect. */
-export async function assertPublicScrapeTarget(
+/** Resolve a target and return the exact public address to which the connection must bind. */
+export async function resolvePublicScrapeTarget(
   rawUrl: string | URL,
   options: { allowedHosts?: string; lookup?: DnsLookup } = {},
-): Promise<string | null> {
+): Promise<ResolvedScrapeTarget | string> {
   const value = rawUrl instanceof URL ? rawUrl.toString() : rawUrl;
   const syntaxError = validateScrapeTarget(value, options.allowedHosts);
   if (syntaxError) return syntaxError;
   const target = rawUrl instanceof URL ? rawUrl : new URL(rawUrl.trim());
 
-  if (isIP(target.hostname)) return null;
+  const literalFamily = isIP(target.hostname);
+  if (literalFamily) {
+    return { url: target, address: target.hostname, family: literalFamily as 4 | 6 };
+  }
   try {
     const records = await (options.lookup ?? defaultLookup)(target.hostname);
     if (records.length === 0 || records.some((record) => isBlockedAddress(record.address))) {
       return 'Target resolves to a private, loopback, link-local, or reserved address';
     }
-    return null;
+    return { url: target, address: records[0].address, family: records[0].family };
   } catch {
     // Fail closed rather than falling back to a browser or fetch DNS lookup.
     return 'Target hostname could not be safely resolved';
   }
+}
+
+/** Resolve and reject any non-public answer. Re-run for each request/redirect. */
+export async function assertPublicScrapeTarget(
+  rawUrl: string | URL,
+  options: { allowedHosts?: string; lookup?: DnsLookup } = {},
+): Promise<string | null> {
+  const result = await resolvePublicScrapeTarget(rawUrl, options);
+  return typeof result === 'string' ? result : null;
 }

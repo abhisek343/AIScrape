@@ -9,6 +9,11 @@ describe('robots policy', () => {
     expect(isAllowedByRobots(robots, new URL('https://example.com/private'), 'AIScrape-Bot/1.0')).toBe(false);
   });
 
+  it('uses the shared browser/HTTP user-agent by default', () => {
+    const robots = 'User-agent: AIScrape-Bot/1.0 (Security-Enhanced)\nDisallow: /private';
+    expect(isAllowedByRobots(robots, new URL('https://example.com/private'))).toBe(false);
+  });
+
   it('uses longest rule match and lets Allow win equal-length ties', () => {
     const robots = `User-agent: *\nDisallow: /private\nAllow: /private/public\nDisallow: /same\nAllow: /same`;
     expect(isAllowedByRobots(robots, new URL('https://example.com/private/file'))).toBe(false);

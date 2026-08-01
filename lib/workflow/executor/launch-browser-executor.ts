@@ -2,9 +2,11 @@ import puppeteer, { Browser, Page } from 'puppeteer';
 
 import { LaunchBrowserTask } from '@/lib/workflow/task/launch-browser';
 import { ExecutionEnvironment } from '@/types/executor';
-import { assertPublicScrapeTarget } from '@/lib/scraping/target-policy';
+import { isIP } from 'node:net';
+import { resolvePublicScrapeTarget, validateScrapeTarget } from '@/lib/scraping/target-policy';
 import { reserveScrapeSlot } from '@/lib/scraping/rate-limit';
 import { assertRobotsAllowed } from '@/lib/scraping/robots-policy';
+import { SCRAPE_USER_AGENT } from '@/lib/scraping/user-agent';
 import { redisConnection } from '@/lib/queue/client';
 
 // Security and resource management constants
@@ -13,10 +15,10 @@ const PAGE_LOAD_TIMEOUT = 30000; // 30 seconds for page load
 const MAX_MEMORY_MB = 512; // 512MB memory limit per browser
 
 
-async function setupSecurePage(page: Page): Promise<void> {
+async function setupSecurePage(page: Page, allowedHostname: string): Promise<void> {
   // Set security headers and restrictions
   await page.setExtraHTTPHeaders({
-    'User-Agent': 'AIScrape-Bot/1.0 (Security-Enhanced)',
+    'User-Agent': SCRAPE_USER_AGENT,
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
     'Accept-Language': 'en-US,en;q=0.5',
     'Accept-Encoding': 'gzip, deflate',
@@ -38,14 +40,30 @@ async function setupSecurePage(page: Page): Promise<void> {
     void (async () => {
     const resourceType = request.resourceType();
     const url = request.url();
-
-    // Re-check subresources and redirects so a public entry URL cannot turn
-    // into a request to a loopback, private, or metadata endpoint.
-    const targetError = await assertPublicScrapeTarget(url);
-    if (targetError) {
+    let parsedUrl: URL;
+    try { parsedUrl = new URL(url); } catch {
       await request.abort();
       return;
     }
+
+    // The browser is launched with a resolver rule for the initial hostname.
+    // Reject cross-host requests so redirects/subresources cannot escape that
+    // pinned connection boundary.
+    if (!['http:', 'https:'].includes(parsedUrl.protocol) ||
+      parsedUrl.hostname.toLowerCase() !== allowedHostname) {
+      await request.abort();
+      return;
+    }
+    const syntaxError = validateScrapeTarget(url);
+    if (syntaxError) {
+      await request.abort();
+      return;
+    }
+
+    // Re-check subresources and redirects so a public entry URL cannot turn
+    // into a loopback, private, or metadata endpoint. DNS is intentionally
+    // not repeated here: Chromium's host resolver rule pins this hostname to
+    // the address selected before launch.
 
     // Block potentially dangerous or unnecessary resources
     if (resourceType === 'font' ||
@@ -86,13 +104,15 @@ export async function LaunchBrowserExecutor(
       return false;
     }
 
-    // Validate website URL
-    const targetError = await assertPublicScrapeTarget(websiteUrl);
-    if (targetError) {
-      environment.log.error(`Invalid website URL: ${targetError}`);
+    // Resolve once and bind the local Chromium resolver to this exact public
+    // address. Re-running DNS before page.goto would leave a check/use race.
+    const resolved = await resolvePublicScrapeTarget(websiteUrl);
+    if (typeof resolved === 'string') {
+      environment.log.error(`Invalid website URL: ${resolved}`);
       return false;
     }
     const target = new URL(websiteUrl);
+    const allowedHostname = target.hostname.toLowerCase();
     const robotsError = await assertRobotsAllowed(target);
     if (robotsError) {
       environment.log.error(`Scrape target rejected: ${robotsError}`);
@@ -128,6 +148,7 @@ export async function LaunchBrowserExecutor(
             '--disable-ipc-flooding-protection',
             `--memory-pressure-off`,
             `--max_old_space_size=${MAX_MEMORY_MB}`,
+            ...(isIP(target.hostname) ? [] : [`--host-resolver-rules=MAP ${target.hostname} ${resolved.address}`]),
           ],
           timeout: BROWSER_TIMEOUT,
         }),
@@ -142,6 +163,10 @@ export async function LaunchBrowserExecutor(
       const wsEndpoint = process.env.BRIGHT_DATA_BROWSER_WS;
       if (!wsEndpoint) {
         environment.log.error('BRIGHT_DATA_BROWSER_WS is not configured');
+        return false;
+      }
+      if (!isIP(target.hostname)) {
+        environment.log.error('Remote browser mode cannot enforce the pinned DNS policy for hostname targets');
         return false;
       }
 
@@ -161,7 +186,7 @@ export async function LaunchBrowserExecutor(
 
     // Create and configure page
     page = await browser.newPage();
-    await setupSecurePage(page);
+    await setupSecurePage(page, allowedHostname);
 
     // Navigate with timeout and error handling
     environment.log.info(`Navigating to: ${websiteUrl}`);
@@ -181,7 +206,11 @@ export async function LaunchBrowserExecutor(
     if (!currentUrl || currentUrl === 'about:blank') {
       throw new Error('Page failed to load properly');
     }
-    const finalTargetError = await assertPublicScrapeTarget(currentUrl);
+    const finalUrl = new URL(currentUrl);
+    if (finalUrl.hostname.toLowerCase() !== allowedHostname) {
+      throw new Error('Redirected to a different hostname; cross-host browser navigation is disabled');
+    }
+    const finalTargetError = validateScrapeTarget(currentUrl);
     if (finalTargetError) throw new Error(`Redirected to an unsafe URL: ${finalTargetError}`);
 
     environment.setPage(page);
