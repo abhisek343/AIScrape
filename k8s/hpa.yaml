@@ -8,7 +8,9 @@ spec:
     kind: Deployment
     name: aiscrape-worker
   minReplicas: 1
-  maxReplicas: 50 # Cap at 50 pods to prevent total resource exhaustion on free clusters
+  # Browser workers are memory-heavy; set a conservative cap and tune after
+  # observing queue depth, browser capacity, and managed Redis limits.
+  maxReplicas: 10
   metrics:
   - type: Resource
     resource:

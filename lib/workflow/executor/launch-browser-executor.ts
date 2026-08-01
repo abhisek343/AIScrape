@@ -2,62 +2,16 @@ import puppeteer, { Browser, Page } from 'puppeteer';
 
 import { LaunchBrowserTask } from '@/lib/workflow/task/launch-browser';
 import { ExecutionEnvironment } from '@/types/executor';
+import { assertPublicScrapeTarget } from '@/lib/scraping/target-policy';
+import { reserveScrapeSlot } from '@/lib/scraping/rate-limit';
+import { assertRobotsAllowed } from '@/lib/scraping/robots-policy';
+import { redisConnection } from '@/lib/queue/client';
 
 // Security and resource management constants
 const BROWSER_TIMEOUT = 60000; // 60 seconds for browser operations
 const PAGE_LOAD_TIMEOUT = 30000; // 30 seconds for page load
 const MAX_MEMORY_MB = 512; // 512MB memory limit per browser
-const FORBIDDEN_PROTOCOLS = ['file:', 'ftp:', 'data:', 'blob:', 'javascript:'];
-const FORBIDDEN_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
 
-function validateWebsiteUrl(url: string): { valid: boolean; error?: string } {
-  if (!url || typeof url !== 'string' || url.trim().length === 0) {
-    return { valid: false, error: 'Website URL is required' };
-  }
-
-  // Remove trailing whitespace and normalize
-  url = url.trim();
-
-  try {
-    const parsedUrl = new URL(url);
-
-    // Only allow HTTP and HTTPS (this check implicitly blocks all forbidden protocols)
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      return { valid: false, error: `Protocol ${parsedUrl.protocol} is not allowed. Only HTTP and HTTPS are permitted.` };
-    }
-
-    // Block forbidden hosts
-    if (FORBIDDEN_HOSTS.includes(parsedUrl.hostname)) {
-      return { valid: false, error: 'Cannot navigate to localhost or loopback addresses' };
-    }
-
-    // Block Cloud Metadata Service (AWS/GCP/Azure)
-    if (parsedUrl.hostname === '169.254.169.254') {
-      return { valid: false, error: 'Access to cloud metadata service is forbidden' };
-    }
-
-    // Block private IP ranges (Enhanced check)
-    const hostname = parsedUrl.hostname;
-    if (
-      hostname.startsWith('192.168.') ||
-      hostname.startsWith('10.') ||
-      hostname.match(/^172\.(1[6-9]|2[0-9]|3[01])\./) || // 172.16.x.x - 172.31.x.x
-      hostname === '::1' ||
-      hostname.match(/^fd[0-9a-f]{2}:/i) // IPv6 Unique Local
-    ) {
-      return { valid: false, error: 'Cannot navigate to private IP addresses' };
-    }
-
-    // Validate URL length
-    if (url.length > 2048) {
-      return { valid: false, error: 'URL exceeds maximum length of 2048 characters' };
-    }
-
-    return { valid: true };
-  } catch (error) {
-    return { valid: false, error: 'Invalid URL format' };
-  }
-}
 
 async function setupSecurePage(page: Page): Promise<void> {
   // Set security headers and restrictions
@@ -81,8 +35,17 @@ async function setupSecurePage(page: Page): Promise<void> {
   await page.setRequestInterception(true);
 
   page.on('request', (request) => {
+    void (async () => {
     const resourceType = request.resourceType();
     const url = request.url();
+
+    // Re-check subresources and redirects so a public entry URL cannot turn
+    // into a request to a loopback, private, or metadata endpoint.
+    const targetError = await assertPublicScrapeTarget(url);
+    if (targetError) {
+      await request.abort();
+      return;
+    }
 
     // Block potentially dangerous or unnecessary resources
     if (resourceType === 'font' ||
@@ -92,13 +55,14 @@ async function setupSecurePage(page: Page): Promise<void> {
       url.includes('advertisement') ||
       url.includes('doubleclick') ||
       url.includes('googleads')) {
-      request.abort();
+      await request.abort();
     } else if (resourceType === 'image' && request.url().match(/\.(png|jpg|jpeg|gif|svg|webp)$/i)) {
       // Allow images but with size limits handled by browser
-      request.continue();
+      await request.continue();
     } else {
-      request.continue();
+      await request.continue();
     }
+    })().catch(() => void request.abort());
   });
 
   // Set timeouts
@@ -123,16 +87,26 @@ export async function LaunchBrowserExecutor(
     }
 
     // Validate website URL
-    const urlValidation = validateWebsiteUrl(websiteUrl);
-    if (!urlValidation.valid) {
-      environment.log.error(`Invalid website URL: ${urlValidation.error}`);
+    const targetError = await assertPublicScrapeTarget(websiteUrl);
+    if (targetError) {
+      environment.log.error(`Invalid website URL: ${targetError}`);
+      return false;
+    }
+    const target = new URL(websiteUrl);
+    const robotsError = await assertRobotsAllowed(target);
+    if (robotsError) {
+      environment.log.error(`Scrape target rejected: ${robotsError}`);
+      return false;
+    }
+    if (!await reserveScrapeSlot(target.hostname, redisConnection.set.bind(redisConnection))) {
+      environment.log.error('Rate limit reached for target host; retry the workflow later');
       return false;
     }
 
     environment.log.info(`Launching browser for URL: ${websiteUrl}`);
 
     // Launch or connect to browser with security settings
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.BROWSER_MODE !== 'remote') {
       // Launch locally in dev with security restrictions
       browser = await Promise.race([
         puppeteer.launch({
@@ -163,7 +137,8 @@ export async function LaunchBrowserExecutor(
       ]);
       environment.log.info('Local browser launched successfully');
     } else {
-      // Connect to BrightData in production
+      // Remote browser use is explicit: hosted deployments must opt in with
+      // BROWSER_MODE=remote and a managed browser WebSocket endpoint.
       const wsEndpoint = process.env.BRIGHT_DATA_BROWSER_WS;
       if (!wsEndpoint) {
         environment.log.error('BRIGHT_DATA_BROWSER_WS is not configured');
@@ -206,6 +181,8 @@ export async function LaunchBrowserExecutor(
     if (!currentUrl || currentUrl === 'about:blank') {
       throw new Error('Page failed to load properly');
     }
+    const finalTargetError = await assertPublicScrapeTarget(currentUrl);
+    if (finalTargetError) throw new Error(`Redirected to an unsafe URL: ${finalTargetError}`);
 
     environment.setPage(page);
     environment.log.info(`Successfully opened page at: ${currentUrl}`);
