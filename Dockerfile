@@ -39,6 +39,7 @@ ENV PUPPETEER_EXECUTABLE_PATH /usr/bin/chromium-browser
 RUN apk add --no-cache \
       chromium \
       nss \
+      openssl \
       freetype \
       harfbuzz \
       ca-certificates \
