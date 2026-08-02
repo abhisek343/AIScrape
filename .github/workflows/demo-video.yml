@@ -29,6 +29,10 @@ jobs:
         shell: bash
         run: |
           cp .env.example .env
+          {
+            echo "SCRAPE_ROBOTS_MODE=advisory"
+            echo "WORKER_SMOKE_URL=https://example.com"
+          } >> .env
           docker compose up --build -d postgres redis
           for attempt in $(seq 1 30); do
             if docker compose exec -T postgres pg_isready -U aiscrape -d aiscrape >/dev/null 2>&1 && \
