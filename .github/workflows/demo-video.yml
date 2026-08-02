@@ -1,0 +1,113 @@
+name: Cloud demo video
+
+on:
+  push:
+    branches:
+      - codex/cloud-demo-recordings
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Start dependencies
+        shell: bash
+        run: |
+          cp .env.example .env
+          docker compose up --build -d postgres redis
+          for attempt in $(seq 1 30); do
+            if docker compose exec -T postgres pg_isready -U aiscrape -d aiscrape >/dev/null 2>&1 && \
+              [ "$(docker compose exec -T redis redis-cli ping 2>/dev/null | tr -d '\r')" = "PONG" ]; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker compose ps
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Apply migrations and start web/worker
+        run: |
+          docker compose up --build migrate
+          docker compose up --build -d web worker
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://localhost:3000/ >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker compose ps
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Exercise a real worker job
+        run: docker compose exec -T worker npx tsx scripts/compose-worker-smoke.ts
+
+      - name: Install browser recorder
+        shell: bash
+        run: |
+          mkdir -p /tmp/aiscrape-recorder /tmp/aiscrape-video
+          cd /tmp/aiscrape-recorder
+          npm init -y >/dev/null 2>&1
+          npm install --no-save playwright@1.52.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+          cat > record.mjs <<'NODE'
+          import { chromium } from "playwright";
+
+          const browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext({
+            viewport: { width: 1280, height: 720 },
+            recordVideo: { dir: "/tmp/aiscrape-video", size: { width: 1280, height: 720 } }
+          });
+          const page = await context.newPage();
+          await page.goto("http://127.0.0.1:3000", {
+            waitUntil: "domcontentloaded",
+            timeout: 60000
+          });
+          await page.waitForTimeout(8000);
+          await page.screenshot({ path: "/tmp/aiscrape-video/home.png" });
+          await context.close();
+          await browser.close();
+          NODE
+          node record.mjs
+          video="$(find /tmp/aiscrape-video -maxdepth 1 -type f -name '*.webm' | head -n 1)"
+          test -n "$video"
+          mkdir -p docs/demo
+          ffmpeg -y -i "$video" -c:v libx264 -pix_fmt yuv420p -movflags +faststart docs/demo/aiscrape-demo.mp4
+          ffmpeg -y -i docs/demo/aiscrape-demo.mp4 \
+            -vf "fps=8,scale=900:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=sierra2" \
+            docs/demo/aiscrape-demo.gif
+          cp /tmp/aiscrape-video/home.png docs/demo/aiscrape-home.png
+
+      - name: Upload demo artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aiscrape-cloud-demo
+          path: docs/demo
+
+      - name: Stop the demo stack
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+      - name: Commit demo assets
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/demo/aiscrape-demo.mp4 docs/demo/aiscrape-demo.gif docs/demo/aiscrape-home.png
+          git diff --cached --quiet || git commit -m "docs: add cloud demo recording [skip ci]"
+          git push origin HEAD:codex/cloud-demo-recordings
