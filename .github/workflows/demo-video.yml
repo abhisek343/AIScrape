@@ -64,60 +64,76 @@ jobs:
       - name: Exercise a real worker job
         run: docker compose exec -T worker npx tsx scripts/compose-worker-smoke.ts
 
-      - name: Install browser recorder
+      - name: Record the browser demo from the worker container
         shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-          mkdir -p /tmp/aiscrape-recorder /tmp/aiscrape-video
-          cd /tmp/aiscrape-recorder
-          npm init -y >/dev/null 2>&1
-          npm install --no-save playwright@1.52.0 >/dev/null 2>&1
-          npx playwright install --with-deps chromium >/dev/null 2>&1
-          cat > record.mjs <<'NODE'
-          import { chromium } from "playwright";
+          mkdir -p /tmp/aiscrape-video
+          cat > /tmp/aiscrape-worker-record.cjs <<'NODE'
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const puppeteer = require("puppeteer");
 
-          const browser = await chromium.launch({ headless: true, args: ["--no-proxy-server", "--host-resolver-rules=MAP localhost 127.0.0.1"] });
-          const context = await browser.newContext({
-            viewport: { width: 1280, height: 720 },
-            recordVideo: { dir: "/tmp/aiscrape-video", size: { width: 1280, height: 720 } }
+          (async () => {
+            const output = "/tmp/aiscrape-video";
+            fs.mkdirSync(output, { recursive: true });
+            const url = process.env.AISCRAPE_DEMO_URL;
+            if (!url) throw new Error("AISCRAPE_DEMO_URL is required");
+
+            const browser = await puppeteer.launch({
+              headless: true,
+              args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu"
+              ]
+            });
+            const page = await browser.newPage();
+            await page.setViewport({ width: 1280, height: 720 });
+            const client = await page.target().createCDPSession();
+            let frameIndex = 0;
+
+            client.on("Page.screencastFrame", async ({ data, sessionId }) => {
+              const filename = path.join(output, `frame-${String(frameIndex++).padStart(4, "0")}.png`);
+              fs.writeFileSync(filename, Buffer.from(data, "base64"));
+              await client.send("Page.screencastFrameAck", { sessionId }).catch(() => undefined);
+            });
+
+            await client.send("Page.startScreencast", {
+              format: "png",
+              quality: 80,
+              maxWidth: 1280,
+              maxHeight: 720,
+              everyNthFrame: 2
+            });
+            await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+            await new Promise((resolve) => setTimeout(resolve, 8000));
+            await page.screenshot({ path: path.join(output, "home.png") });
+            await client.send("Page.stopScreencast");
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            await browser.close();
+
+            if (frameIndex === 0) throw new Error("No screencast frames captured");
+            console.log(JSON.stringify({ event: "aiscrape.browser-demo.completed", url, frames: frameIndex }));
+          })().catch((error) => {
+            console.error(error instanceof Error ? error.stack : error);
+            process.exit(1);
           });
-          const page = await context.newPage();
-          const demoUrl = process.env.AISCRAPE_DEMO_URL ?? "http://web:3000";
-          await page.goto(demoUrl, {
-            waitUntil: "domcontentloaded",
-            timeout: 60000
-          });
-          await page.waitForTimeout(8000);
-          await page.screenshot({ path: "/tmp/aiscrape-video/home.png" });
-          await context.close();
-          await browser.close();
           NODE
-          cd "$GITHUB_WORKSPACE"
-          docker compose ps
           web_container="$(docker compose ps -q web)"
           web_ip="$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$web_container")"
+          worker_container="$(docker compose ps -q worker)"
           test -n "$web_ip"
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/tmp/aiscrape-home.html; then
-              break
-            fi
-            if [ "$attempt" -eq 30 ]; then
-              docker compose logs --no-color --tail=100 web worker
-              exit 1
-            fi
-            sleep 2
-          done
-          docker run --rm --ipc=host --network aiscrape_default \
-            -v /tmp/aiscrape-recorder:/tmp/aiscrape-recorder \
-            -v /tmp/aiscrape-video:/tmp/aiscrape-video \
-            -e "AISCRAPE_DEMO_URL=http://$web_ip:3000" \
-            mcr.microsoft.com/playwright:v1.52.0-noble \
-            node /tmp/aiscrape-recorder/record.mjs
-          video="$(find /tmp/aiscrape-video -maxdepth 1 -type f -name '*.webm' | head -n 1)"
-          test -n "$video"
+          test -n "$worker_container"
+          docker cp /tmp/aiscrape-worker-record.cjs "$worker_container:/tmp/aiscrape-worker-record.cjs"
+          docker compose exec -T -e "AISCRAPE_DEMO_URL=http://$web_ip:3000" worker node /tmp/aiscrape-worker-record.cjs
+          docker cp "$worker_container:/tmp/aiscrape-video/." /tmp/aiscrape-video/
+          test -s /tmp/aiscrape-video/home.png
+          test -n "$(find /tmp/aiscrape-video -maxdepth 1 -type f -name 'frame-*.png' | head -n 1)"
           mkdir -p docs/demo
-          ffmpeg -y -i "$video" -c:v libx264 -pix_fmt yuv420p -movflags +faststart docs/demo/aiscrape-demo.mp4
+          ffmpeg -y -framerate 12 -i /tmp/aiscrape-video/frame-%04d.png -c:v libx264 -pix_fmt yuv420p -movflags +faststart docs/demo/aiscrape-demo.mp4
           ffmpeg -y -i docs/demo/aiscrape-demo.mp4 \
             -vf "fps=8,scale=900:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=sierra2" \
             docs/demo/aiscrape-demo.gif
