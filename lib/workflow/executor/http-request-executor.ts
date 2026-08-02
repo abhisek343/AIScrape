@@ -3,6 +3,7 @@ import { HttpRequestTask } from '@/lib/workflow/task/http-request';
 import { safeJsonParse } from '@/lib/safe-json';
 import { assertPublicScrapeTarget } from '@/lib/scraping/target-policy';
 import { fetchPublicUrl } from '@/lib/scraping/robots-policy';
+import { readBoundedResponseText, ResponseBodyTooLargeError } from '@/lib/scraping/response-body';
 
 // Security constants
 const HTTP_TIMEOUT = 30000; // 30 seconds
@@ -72,25 +73,28 @@ export async function HttpRequestExecutor(
 
     environment.log.info(`Making ${method} request to: ${url}`);
 
-    const res = await fetchPublicUrl(url, init);
+    const res = await fetchPublicUrl(url, init, { maxResponseBytes: MAX_RESPONSE_SIZE });
     clearTimeout(timeoutId);
 
     // Check response size
     const contentLength = res.headers.get('content-length');
     if (contentLength && parseInt(contentLength) > MAX_RESPONSE_SIZE) {
+      res.discardBody?.();
       environment.log.error(`Response size ${contentLength} exceeds maximum of ${MAX_RESPONSE_SIZE} bytes`);
       return false;
     }
 
-    const text = await res.text();
-
-    // Check actual response size
-    if (text.length > MAX_RESPONSE_SIZE) {
-      environment.log.error(`Response size exceeds maximum of ${MAX_RESPONSE_SIZE} bytes`);
-      const truncatedText = text.substring(0, 1000) + '...[truncated]';
-      environment.setOutput('Status', String(res.status));
-      environment.setOutput('Response body', truncatedText);
-      return false;
+    let text: string;
+    try {
+      text = await readBoundedResponseText(res, MAX_RESPONSE_SIZE);
+    } catch (error) {
+      if (error instanceof ResponseBodyTooLargeError) {
+        environment.log.error(error.message);
+        environment.setOutput('Status', String(res.status));
+        environment.setOutput('Response body', '<response body omitted: size limit exceeded>');
+        return false;
+      }
+      throw error;
     }
 
     environment.setOutput('Status', String(res.status));

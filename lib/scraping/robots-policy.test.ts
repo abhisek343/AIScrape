@@ -1,4 +1,11 @@
-import { assertRobotsAllowed, fetchPublicUrl, isAllowedByRobots } from './robots-policy';
+import { Readable } from 'node:stream';
+import {
+  assertRobotsAllowed,
+  fetchPublicUrl,
+  isAllowedByRobots,
+  MAX_ROBOTS_RESPONSE_BYTES,
+  readBoundedResponseText,
+} from './robots-policy';
 
 const publicLookup = async () => [{ address: '93.184.216.34', family: 4 as const }];
 
@@ -29,12 +36,59 @@ describe('robots policy', () => {
 
   it('follows only redirects whose destinations still resolve publicly', async () => {
     const fetchImpl = jest.fn()
-      .mockResolvedValueOnce({ ok: false, status: 302, headers: { get: () => 'https://private.example/robots.txt' }, text: async () => '' });
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 302,
+        headers: { get: () => 'https://private.example/robots.txt' },
+        text: jest.fn(async () => ''),
+        discardBody: jest.fn(),
+      });
     await expect(fetchPublicUrl('https://example.com/robots.txt', {}, {
       fetchImpl,
       lookup: async (host) => [{ address: host === 'private.example' ? '127.0.0.1' : '93.184.216.34', family: 4 }],
     })).rejects.toThrow('resolves');
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('drains redirect responses without reading their untrusted body', async () => {
+    const text = jest.fn(async () => 'this body must not be read');
+    const discardBody = jest.fn();
+    const fetchImpl = jest.fn()
+      .mockResolvedValueOnce({ ok: false, status: 302, headers: { get: () => 'https://public.example/next' }, text, discardBody })
+      .mockResolvedValueOnce({ ok: true, status: 200, headers: { get: () => null }, text: async () => 'ok' });
+
+    const result = await fetchPublicUrl('https://example.com/start', {}, {
+      fetchImpl,
+      lookup: publicLookup,
+    });
+
+    await expect(result.text()).resolves.toBe('ok');
+    expect(discardBody).toHaveBeenCalledTimes(1);
+    expect(text).not.toHaveBeenCalled();
+  });
+
+  it('rejects a chunked body before retaining chunks beyond its configured limit', async () => {
+    let chunksRead = 0;
+    const stream = Readable.from((function* () {
+      for (const chunk of ['abc', 'def', 'ghi']) {
+        chunksRead += 1;
+        yield Buffer.from(chunk);
+      }
+    })());
+    const headers = { get: () => null };
+
+    await expect(readBoundedResponseText(stream as any, headers, 5)).rejects.toThrow('5-byte limit');
+    expect(chunksRead).toBeLessThanOrEqual(3);
+  });
+
+  it('fails closed when robots.txt declares a body over its bounded limit', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: (name: string) => name === 'content-length' ? String(MAX_ROBOTS_RESPONSE_BYTES + 1) : null },
+      text: async () => 'ignored',
+    });
+    await expect(assertRobotsAllowed(new URL('https://example.com/'), fetchImpl, publicLookup)).resolves.toBe('Could not retrieve robots.txt');
   });
 
   it('blocks paths disallowed for the wildcard agent', async () => {
