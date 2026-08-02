@@ -145,3 +145,16 @@ Contributions are welcome! Please feel free to submit a pull request or open an 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Cloud demo
+
+[![AIScrape cloud demo](docs/demo/aiscrape-demo.gif)](docs/demo/aiscrape-demo.mp4)
+
+This recording is generated on a clean GitHub Actions Ubuntu runner. It boots PostgreSQL, Redis, the migration job, the Next.js web application, and the BullMQ worker, then records the running application after exercising a real browser-worker job.
+
+To reproduce locally:
+
+    cp .env.example .env
+    docker compose up --build
+
+The local application is available at http://localhost:3000. Authentication, Gemini, Stripe, and production browser-provider integrations require deployment-owned credentials.
