@@ -62,7 +62,10 @@ jobs:
           done
           docker compose ps
           exit 1
-      - run: docker compose exec -T worker npx tsx scripts/compose-worker-smoke.ts
+      # Keep this external-network smoke focused on queue, database, worker,
+      # and browser execution when a public robots.txt endpoint is unavailable.
+      # The production default remains strict and is covered by unit tests.
+      - run: docker compose exec -T -e SCRAPE_ROBOTS_MODE=advisory worker npx tsx scripts/compose-worker-smoke.ts
       - run: docker compose exec -T redis redis-cli ping
       - if: always()
         run: docker compose logs --no-color && docker compose down -v
