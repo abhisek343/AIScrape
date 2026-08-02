@@ -83,7 +83,7 @@ jobs:
             recordVideo: { dir: "/tmp/aiscrape-video", size: { width: 1280, height: 720 } }
           });
           const page = await context.newPage();
-          await page.goto("http://127.0.0.1:3000", {
+          await page.goto("http://web:3000", {
             waitUntil: "domcontentloaded",
             timeout: 60000
           });
@@ -104,9 +104,11 @@ jobs:
             fi
             sleep 2
           done
-          export NO_PROXY="127.0.0.1,localhost"
-          export no_proxy="$NO_PROXY"
-          node /tmp/aiscrape-recorder/record.mjs
+          docker run --rm --ipc=host --network aiscrape_default \
+            -v /tmp/aiscrape-recorder:/tmp/aiscrape-recorder \
+            -v /tmp/aiscrape-video:/tmp/aiscrape-video \
+            mcr.microsoft.com/playwright:v1.52.0-noble \
+            node /tmp/aiscrape-recorder/record.mjs
           video="$(find /tmp/aiscrape-video -maxdepth 1 -type f -name '*.webm' | head -n 1)"
           test -n "$video"
           mkdir -p docs/demo
