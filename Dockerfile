@@ -5,6 +5,9 @@ FROM node:20-alpine AS base
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
+# Prisma's npm postinstall runs prisma generate, so the schema must be
+# available in the dependency layer before npm ci executes.
+COPY prisma ./prisma
 # Install dependencies (incorporating sharp handling for Next.js image optimization if needed)
 RUN npm ci
 
@@ -15,8 +18,10 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Environment variables must be present at build time for Next.js static generation
-# For production build, we might need dummy values or secrets mounted
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
 ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV production
 
 # Build Next.js
 RUN npm run build
@@ -34,13 +39,13 @@ ENV PUPPETEER_EXECUTABLE_PATH /usr/bin/chromium-browser
 RUN apk add --no-cache \
       chromium \
       nss \
+      openssl \
       freetype \
       harfbuzz \
       ca-certificates \
       ttf-freefont
 
-run addgroup --system --gid 1001 nodejs
-run adduser --system --uid 1001 nextjs
+RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs nextjs
 
 COPY --from=builder /app/public ./public
 
@@ -54,7 +59,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Simplest approach for hybrid repo: Copy necessary sources for worker execution via tsx/node
 COPY --from=builder --chown=nextjs:nodejs /app/worker.ts ./worker.ts
 COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
+COPY --from=builder --chown=nextjs:nodejs /app/types ./types
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 

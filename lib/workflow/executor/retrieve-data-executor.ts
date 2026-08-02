@@ -1,5 +1,3 @@
-import 'server-only';
-
 import prisma from '@/lib/prisma';
 import { RetrieveDataTask } from '@/lib/workflow/task/retrieve-data';
 import { ExecutionEnvironment } from '@/types/executor';
