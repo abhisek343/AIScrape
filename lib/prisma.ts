@@ -23,12 +23,18 @@ const prismaClientSingleton = () => {
     } as any;
   }
 
-  const pool = new Pool({ connectionString });
-  // @ts-ignore Potentially a type incompatibility between Neon Pool and PrismaNeon adapter
-  const adapter = new PrismaNeon(pool);
-  const prisma = new PrismaClient({ adapter });
+  // The Neon adapter speaks WebSockets and cannot connect to a regular
+  // PostgreSQL service such as the local Compose `postgres` container.
+  // Keep the adapter for Neon deployments, but use Prisma's native engine
+  // everywhere else.
+  if (/neon\.tech/i.test(connectionString)) {
+    const pool = new Pool({ connectionString });
+    // @ts-ignore Potentially a type incompatibility between Neon Pool and PrismaNeon adapter
+    const adapter = new PrismaNeon(pool);
+    return new PrismaClient({ adapter });
+  }
 
-  return prisma;
+  return new PrismaClient();
 };
 
 declare const globalThis: {
