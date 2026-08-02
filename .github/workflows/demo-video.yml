@@ -83,7 +83,8 @@ jobs:
             recordVideo: { dir: "/tmp/aiscrape-video", size: { width: 1280, height: 720 } }
           });
           const page = await context.newPage();
-          await page.goto("http://web:3000", {
+          const demoUrl = process.env.AISCRAPE_DEMO_URL ?? "http://web:3000";
+          await page.goto(demoUrl, {
             waitUntil: "domcontentloaded",
             timeout: 60000
           });
@@ -94,6 +95,9 @@ jobs:
           NODE
           cd "$GITHUB_WORKSPACE"
           docker compose ps
+          web_container="$(docker compose ps -q web)"
+          web_ip="$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$web_container")"
+          test -n "$web_ip"
           for attempt in $(seq 1 30); do
             if curl --fail --silent --show-error http://127.0.0.1:3000/ >/tmp/aiscrape-home.html; then
               break
@@ -107,6 +111,7 @@ jobs:
           docker run --rm --ipc=host --network aiscrape_default \
             -v /tmp/aiscrape-recorder:/tmp/aiscrape-recorder \
             -v /tmp/aiscrape-video:/tmp/aiscrape-video \
+            -e "AISCRAPE_DEMO_URL=http://$web_ip:3000" \
             mcr.microsoft.com/playwright:v1.52.0-noble \
             node /tmp/aiscrape-recorder/record.mjs
           video="$(find /tmp/aiscrape-video -maxdepth 1 -type f -name '*.webm' | head -n 1)"
