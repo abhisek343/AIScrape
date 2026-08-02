@@ -108,7 +108,21 @@ jobs:
               maxHeight: 720,
               everyNthFrame: 2
             });
-            await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Landing page returned HTTP ${response.status}`);
+            let html = await response.text();
+            const cssHrefs = [...html.matchAll(/<link[^>]+href=["']([^"']+\\.css[^"']*)["'][^>]*>/gi)]
+              .map((match) => match[1]);
+            let css = "";
+            for (const href of [...new Set(cssHrefs)]) {
+              const stylesheet = await fetch(new URL(href, url));
+              if (stylesheet.ok) css += `\\n${await stylesheet.text()}`;
+            }
+            html = html
+              .replace(/<script[\\s\\S]*?<\\/script>/gi, "")
+              .replace(/<link[^>]+href=["'][^"']+\\.css[^"']*["'][^>]*>/gi, "")
+              .replace("</head>", `<style>${css}</style></head>`);
+            await page.setContent(html, { waitUntil: "domcontentloaded" });
             await new Promise((resolve) => setTimeout(resolve, 8000));
             await page.screenshot({ path: path.join(output, "home.png") });
             await client.send("Page.stopScreencast");
