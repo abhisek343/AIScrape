@@ -63,6 +63,8 @@ jobs:
       - name: Install browser recorder
         shell: bash
         run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
           mkdir -p /tmp/aiscrape-recorder /tmp/aiscrape-video
           cd /tmp/aiscrape-recorder
           npm init -y >/dev/null 2>&1
