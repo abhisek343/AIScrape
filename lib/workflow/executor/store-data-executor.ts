@@ -1,5 +1,3 @@
-import 'server-only';
-
 import prisma from '@/lib/prisma';
 import { StoreDataTask } from '@/lib/workflow/task/store-data';
 import { ExecutionEnvironment } from '@/types/executor';

@@ -1,4 +1,3 @@
-import 'server-only'; // Assuming this was intended or should be here for server-side execution
 // import OpenAI from 'openai'; // Remove this line
 
 import prisma from '@/lib/prisma';
