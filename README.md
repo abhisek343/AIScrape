@@ -44,19 +44,33 @@ AIScrape is a powerful, intuitive platform that simplifies web crawling by enabl
     npm install
     ```
 
-3.  **Set up environment variables:**
-    Create a `.env` file in the root of the project and add the necessary environment variables. You can use `.env.example` as a template.
+3.  **Start the reproducible local stack:**
+    ```bash
+    cp .env.example .env
+    docker compose up --build
+    ```
+    This starts PostgreSQL, Redis, a migration job, the Next.js web process,
+    and the BullMQ worker. See [the operations runbook](docs/OPERATIONS.md) for
+    queue semantics, observability, deployment, rollback, and target policy.
 
      Required for the chatbot assistant:
      - `GOOGLE_API_KEY` — for Generative AI (Gemini) features used by the in-app chatbot.
      - `GEMINI_ENABLE_GOOGLE_SEARCH` — set to `true` to enable Google Search Grounding for up-to-date web answers.
 
-4.  **Run the development server:**
+4.  **Or run the development server:**
     ```bash
     npm run dev
     ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+### Responsible use
+
+AIScrape is for targets you are authorized to automate. It rejects private,
+loopback, metadata, and non-HTTP(S) targets before a browser opens. In shared
+environments set `SCRAPE_ALLOWED_HOSTS` to a comma-separated allowlist, respect
+robots directives and terms of service, rate-limit per target, and never use a
+workflow to bypass authentication, access controls, CAPTCHAs, or paywalls.
 
 ## 🧩 Supported Workflow Nodes
 

@@ -1,31 +1,13 @@
 import { ExecutionEnvironment } from '@/types/executor';
 import { HttpRequestTask } from '@/lib/workflow/task/http-request';
 import { safeJsonParse } from '@/lib/safe-json';
+import { assertPublicScrapeTarget } from '@/lib/scraping/target-policy';
+import { fetchPublicUrl } from '@/lib/scraping/robots-policy';
 
 // Security constants
 const HTTP_TIMEOUT = 30000; // 30 seconds
 const MAX_RESPONSE_SIZE = 50 * 1024 * 1024; // 50MB
 const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
-
-function validateHttpUrl(url: string): { valid: boolean; error?: string } {
-  try {
-    const parsedUrl = new URL(url);
-    
-    // Only allow HTTP and HTTPS
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      return { valid: false, error: 'Only HTTP and HTTPS protocols are allowed' };
-    }
-    
-    // Block localhost and loopback
-    if (['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(parsedUrl.hostname)) {
-      return { valid: false, error: 'Cannot make requests to localhost or loopback addresses' };
-    }
-    
-    return { valid: true };
-  } catch (error) {
-    return { valid: false, error: 'Invalid URL format' };
-  }
-}
 
 export async function HttpRequestExecutor(
   environment: ExecutionEnvironment<typeof HttpRequestTask>
@@ -48,9 +30,9 @@ export async function HttpRequestExecutor(
     }
 
     // Validate URL
-    const urlValidation = validateHttpUrl(url);
-    if (!urlValidation.valid) {
-      environment.log.error(`Invalid URL: ${urlValidation.error}`);
+    const urlValidation = await assertPublicScrapeTarget(url);
+    if (urlValidation) {
+      environment.log.error(`Invalid URL: ${urlValidation}`);
       return false;
     }
 
@@ -90,7 +72,7 @@ export async function HttpRequestExecutor(
 
     environment.log.info(`Making ${method} request to: ${url}`);
 
-    const res = await fetch(url, init);
+    const res = await fetchPublicUrl(url, init);
     clearTimeout(timeoutId);
 
     // Check response size
