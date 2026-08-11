@@ -1,4 +1,3 @@
-import 'server-only';
 import { revalidatePath } from 'next/cache';
 import { ExecutionPhase } from '@prisma/client';
 import { Browser, Page } from 'puppeteer';
