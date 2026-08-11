@@ -31,6 +31,20 @@ backoff from one second. A terminal failure is copied to
 worker logs are the local observability surface; production deployments should
 ship those JSON logs to their normal collector and monitor DLQ depth.
 
+### Worker and browser smoke
+
+After the stack is running, the same ephemeral workflow used by CI can verify
+that Redis enqueues a real job, the worker launches Chromium, and HTML output is
+persisted:
+
+```bash
+docker compose exec -T worker npx tsx scripts/compose-worker-smoke.ts
+```
+
+The script uses the public IANA example page, consumes seven temporary credits,
+and deletes its workflow and balance after the assertion. Replace
+`WORKER_SMOKE_URL` only with a host that is present in `SCRAPE_ALLOWED_HOSTS`.
+
 ## Target and compliance policy
 
 Only scrape targets for which you have permission and which comply with the

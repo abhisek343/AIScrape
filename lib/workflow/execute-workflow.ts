@@ -121,7 +121,13 @@ export async function executeWorkflow(executionId: string, nextRunAt?: Date) {
   await finalizeWorkflowExecution(executionId, execution.workflowId, executionFailed, creditsConsumed);
   await cleanupEnvironment(environment);
 
-  revalidatePath('/workflow/runs');
+  try {
+    revalidatePath('/workflow/runs');
+  } catch (error) {
+    // Queue workers run outside a Next request context. Persistence is already
+    // complete, so cache invalidation is best-effort in that process.
+    console.warn('Skipping Next cache revalidation outside request context:', error);
+  }
 }
 
 async function initializeWorkflowExecution(executionId: string, workflowId: string, nextRunAt?: Date) {

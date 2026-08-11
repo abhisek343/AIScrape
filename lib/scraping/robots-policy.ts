@@ -1,19 +1,34 @@
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
+import type { IncomingMessage } from 'node:http';
 import { DnsLookup, resolvePublicScrapeTarget, ResolvedScrapeTarget } from './target-policy';
 import { SCRAPE_USER_AGENT } from './user-agent';
+import { readBoundedResponseText as readFetchResponseText } from './response-body';
 
 type FetchResponse = {
   ok: boolean;
   status?: number;
   headers: { get(name: string): string | null };
+  body?: ReadableStream<Uint8Array> | null;
   text(): Promise<string>;
+  /** Drain a response that will not be read (for example, a redirect body). */
+  discardBody?(): void;
 };
 type FetchInit = RequestInit & { dispatcher?: unknown };
 type FetchLike = (input: string, init?: FetchInit) => Promise<FetchResponse>;
 
 type RobotsRule = { directive: 'allow' | 'disallow'; pattern: string };
 type RobotsGroup = { agents: string[]; rules: RobotsRule[] };
+
+export const DEFAULT_PUBLIC_RESPONSE_BYTES = 50 * 1024 * 1024;
+export const MAX_ROBOTS_RESPONSE_BYTES = 512 * 1024;
+
+export class PublicResponseTooLargeError extends Error {
+  constructor(maxBytes: number) {
+    super(`Response exceeds the ${maxBytes}-byte limit`);
+    this.name = 'PublicResponseTooLargeError';
+  }
+}
 
 function parseRobots(robots: string): RobotsGroup[] {
   const groups: RobotsGroup[] = [];
@@ -86,13 +101,102 @@ function responseHeaders(headers: Record<string, string | string[] | undefined>)
   return result;
 }
 
+function declaredContentLength(headers: { get(name: string): string | null }): number | null {
+  const header = headers.get('content-length');
+  if (!header) return null;
+  const size = Number.parseInt(header, 10);
+  return Number.isFinite(size) && size >= 0 ? size : null;
+}
+
+function wrapFetchResponse(response: FetchResponse, maxBytes: number): FetchResponse {
+  const contentLength = declaredContentLength(response.headers);
+  if (contentLength !== null && contentLength > maxBytes) {
+    response.body?.cancel();
+    response.discardBody?.();
+    throw new PublicResponseTooLargeError(maxBytes);
+  }
+  if (!response.body) return response;
+
+  let textPromise: Promise<string> | null = null;
+  return {
+    ...response,
+    text: () => {
+      if (!textPromise) textPromise = readFetchResponseText(response, maxBytes);
+      return textPromise;
+    },
+    discardBody: () => {
+      response.body?.cancel();
+      response.discardBody?.();
+    },
+  };
+}
+
+/**
+ * Consume a response incrementally.  The limit is checked before retaining
+ * each chunk, so a peer without a Content-Length cannot force a full body into
+ * memory before rejection.
+ */
+export function readBoundedResponseText(
+  response: IncomingMessage,
+  headers: { get(name: string): string | null },
+  maxBytes: number,
+): Promise<string> {
+  const contentLength = declaredContentLength(headers);
+  if (contentLength !== null && contentLength > maxBytes) {
+    response.resume();
+    return Promise.reject(new PublicResponseTooLargeError(maxBytes));
+  }
+
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let received = 0;
+    let settled = false;
+
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      response.removeListener('data', onData);
+      response.removeListener('end', onEnd);
+      response.removeListener('error', onError);
+      response.removeListener('aborted', onAborted);
+      callback();
+    };
+    const onData = (chunk: Buffer | string) => {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      received += buffer.length;
+      if (received > maxBytes) {
+        const error = new PublicResponseTooLargeError(maxBytes);
+        finish(() => reject(error));
+        // The promise already carries the bounded-body error; destroy without
+        // an error argument so Node does not emit an unhandled second error.
+        response.destroy();
+        return;
+      }
+      chunks.push(buffer);
+    };
+    const onEnd = () => finish(() => resolve(Buffer.concat(chunks).toString('utf8')));
+    const onError = (error: Error) => finish(() => reject(error));
+    const onAborted = () => finish(() => reject(new Error('Response aborted before completion')));
+
+    response.on('data', onData);
+    response.once('end', onEnd);
+    response.once('error', onError);
+    response.once('aborted', onAborted);
+  });
+}
+
 /**
  * Make the socket use the address selected by resolvePublicScrapeTarget.
  * Passing a lookup callback to the actual Node transport closes the
  * validation/use race that exists when a hostname is checked and then passed
  * to the default resolver again.
  */
-function fetchPinnedUrl(target: URL, init: RequestInit, resolved: ResolvedScrapeTarget): Promise<FetchResponse> {
+function fetchPinnedUrl(
+  target: URL,
+  init: RequestInit,
+  resolved: ResolvedScrapeTarget,
+  maxResponseBytes: number,
+): Promise<FetchResponse> {
   const transport = target.protocol === 'https:' ? httpsRequest : httpRequest;
   const headers = new Headers(init.headers);
   headers.set('User-Agent', SCRAPE_USER_AGENT);
@@ -108,16 +212,26 @@ function fetchPinnedUrl(target: URL, init: RequestInit, resolved: ResolvedScrape
       lookup: (_hostname, _options, callback) => callback(null, resolved.address, resolved.family),
       ...(target.protocol === 'https:' ? { servername: target.hostname } : {}),
     }, (response) => {
-      const chunks: Buffer[] = [];
-      response.on('data', (chunk: Buffer | string) => chunks.push(Buffer.from(chunk)));
-      response.on('end', () => {
-        const body = Buffer.concat(chunks).toString('utf8');
-        resolve({
-          ok: (response.statusCode ?? 500) >= 200 && (response.statusCode ?? 500) < 300,
-          status: response.statusCode,
-          headers: responseHeaders(response.headers),
-          text: async () => body,
-        });
+      const headers = responseHeaders(response.headers);
+      let consumed = false;
+      let textPromise: Promise<string> | null = null;
+      resolve({
+        ok: (response.statusCode ?? 500) >= 200 && (response.statusCode ?? 500) < 300,
+        status: response.statusCode,
+        headers,
+        text: () => {
+          if (!textPromise) {
+            consumed = true;
+            textPromise = readBoundedResponseText(response, headers, maxResponseBytes);
+          }
+          return textPromise;
+        },
+        discardBody: () => {
+          if (!consumed) {
+            consumed = true;
+            response.resume();
+          }
+        },
       });
     });
     request.once('error', reject);
@@ -144,10 +258,16 @@ function fetchPinnedUrl(target: URL, init: RequestInit, resolved: ResolvedScrape
 export async function fetchPublicUrl(
   initialUrl: string | URL,
   init: RequestInit = {},
-  options: { fetchImpl?: FetchLike; lookup?: DnsLookup; maxRedirects?: number } = {},
+  options: {
+    fetchImpl?: FetchLike;
+    lookup?: DnsLookup;
+    maxRedirects?: number;
+    maxResponseBytes?: number;
+  } = {},
 ): Promise<FetchResponse> {
   const fetchImpl = options.fetchImpl ?? (fetch as unknown as FetchLike);
   const maxRedirects = options.maxRedirects ?? 5;
+  const maxResponseBytes = options.maxResponseBytes ?? DEFAULT_PUBLIC_RESPONSE_BYTES;
   let current = new URL(initialUrl.toString());
 
   for (let redirects = 0; redirects <= maxRedirects; redirects += 1) {
@@ -155,10 +275,16 @@ export async function fetchPublicUrl(
     if (typeof resolved === 'string') throw new Error(resolved);
     const response = options.fetchImpl
       ? await fetchImpl(current.toString(), { ...init, redirect: 'manual' })
-      : await fetchPinnedUrl(current, { ...init, redirect: 'manual' }, resolved);
-    const location = response.headers.get('location');
-    const isRedirect = !!response.status && response.status >= 300 && response.status < 400 && !!location;
-    if (!isRedirect) return response;
+      : await fetchPinnedUrl(current, { ...init, redirect: 'manual' }, resolved, maxResponseBytes);
+    const boundedResponse = options.fetchImpl
+      ? wrapFetchResponse(response, maxResponseBytes)
+      : response;
+    const location = boundedResponse.headers.get('location');
+    const isRedirect = !!boundedResponse.status && boundedResponse.status >= 300 && boundedResponse.status < 400 && !!location;
+    if (!isRedirect) return boundedResponse;
+    // Redirect responses are never useful to callers. Drain them instead of
+    // retaining an untrusted body while the next hop is validated.
+    boundedResponse.discardBody?.();
     if (redirects === maxRedirects) throw new Error('Too many redirects while fetching target');
     current = new URL(location!, current);
   }
@@ -175,7 +301,7 @@ export async function assertRobotsAllowed(
   try {
     const response = await fetchPublicUrl(`${target.protocol}//${target.host}/robots.txt`, {
       signal: AbortSignal.timeout(5_000),
-    }, { fetchImpl, lookup });
+    }, { fetchImpl, lookup, maxResponseBytes: MAX_ROBOTS_RESPONSE_BYTES });
     if (!response.ok) return mode === 'strict' ? 'Could not retrieve robots.txt' : null;
     return isAllowedByRobots(await response.text(), target, SCRAPE_USER_AGENT)
       ? null
