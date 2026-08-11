@@ -73,7 +73,7 @@ jobs:
           cat > /tmp/aiscrape-worker-record.cjs <<'NODE'
           const fs = require("node:fs");
           const path = require("node:path");
-          const puppeteer = require("puppeteer");
+          const puppeteer = require("/app/node_modules/puppeteer");
 
           (async () => {
             const output = "/tmp/aiscrape-video";
