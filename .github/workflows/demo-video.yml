@@ -40,7 +40,8 @@ jobs:
               break
             fi
             if [ "$attempt" -eq 30 ]; then
-              docker compose ps
+              cd "$GITHUB_WORKSPACE"
+          docker compose ps
               exit 1
             fi
             sleep 2
@@ -83,7 +84,7 @@ jobs:
             recordVideo: { dir: "/tmp/aiscrape-video", size: { width: 1280, height: 720 } }
           });
           const page = await context.newPage();
-          await page.goto("http://127.0.0.1:3000", {
+          await page.goto("http://localhost:3000", {
             waitUntil: "domcontentloaded",
             timeout: 60000
           });
@@ -108,7 +109,6 @@ jobs:
           node record.mjs
           video="$(find /tmp/aiscrape-video -maxdepth 1 -type f -name '*.webm' | head -n 1)"
           test -n "$video"
-          cd "$GITHUB_WORKSPACE"
           mkdir -p docs/demo
           ffmpeg -y -i "$video" -c:v libx264 -pix_fmt yuv420p -movflags +faststart docs/demo/aiscrape-demo.mp4
           ffmpeg -y -i docs/demo/aiscrape-demo.mp4 \
