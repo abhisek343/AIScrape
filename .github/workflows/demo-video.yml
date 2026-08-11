@@ -92,6 +92,19 @@ jobs:
           await context.close();
           await browser.close();
           NODE
+          docker compose ps
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/tmp/aiscrape-home.html; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker compose logs --no-color --tail=100 web worker
+              exit 1
+            fi
+            sleep 2
+          done
+          export NO_PROXY="127.0.0.1,localhost"
+          export no_proxy="$NO_PROXY"
           node record.mjs
           video="$(find /tmp/aiscrape-video -maxdepth 1 -type f -name '*.webm' | head -n 1)"
           test -n "$video"
