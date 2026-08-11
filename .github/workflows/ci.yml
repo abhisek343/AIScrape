@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test -- --runInBand
+      - run: npm run lint
+      - run: npm run build
+        env:
+          # Public build-time placeholder; no production credential is stored in CI.
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
+          CLERK_SECRET_KEY: sk_test_build_placeholder
+          DATABASE_URL: postgresql://aiscrape:aiscrape-local-only@localhost:5432/aiscrape
+          REDIS_CONNECTION_URL: redis://localhost:6379
+          GOOGLE_API_KEY: test-build-placeholder
+          STRIPE_SECRET_KEY: sk_test_build_placeholder
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - run: |
+          cp .env.example .env
+          sed -i 's/^SCRAPE_ROBOTS_MODE=.*/SCRAPE_ROBOTS_MODE=advisory/' .env
+      - run: |
+          docker compose up --build -d postgres redis
+          for attempt in $(seq 1 30); do
+            if docker compose exec -T postgres pg_isready -U aiscrape -d aiscrape >/dev/null 2>&1 && \
+              [ "$(docker compose exec -T redis redis-cli ping 2>/dev/null | tr -d '\r')" = "PONG" ]; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker compose ps
+              exit 1
+            fi
+            sleep 2
+          done
+      - run: docker compose up --build migrate
+      - run: docker compose up --build -d web worker
+      - run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://localhost:3000/; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps
+          exit 1
+      # Keep this external-network smoke focused on queue, database, worker,
+      # and browser execution when a public robots.txt endpoint is unavailable.
+      # The production default remains strict and is covered by unit tests.
+      - run: docker compose exec -T worker npx tsx scripts/compose-worker-smoke.ts
+      - run: docker compose exec -T redis redis-cli ping
+      - if: always()
+        run: docker compose logs --no-color && docker compose down -v

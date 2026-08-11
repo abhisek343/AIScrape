@@ -19,8 +19,9 @@ spec:
     spec:
       containers:
         - name: nextjs
-          image: aiscrape:latest
-          imagePullPolicy: Never # Use local image for minikube
+          # Replace with an immutable registry digest during deployment.
+          image: ghcr.io/abhisek343/aiscrape:replace-me
+          imagePullPolicy: IfNotPresent
           env:
             - name: DATABASE_URL
               valueFrom:
@@ -28,9 +29,19 @@ spec:
                   name: aiscrape-secrets
                   key: DATABASE_URL
             - name: REDIS_CONNECTION_URL
-              value: "redis://redis-service:6379"
+              valueFrom:
+                secretKeyRef:
+                  name: aiscrape-secrets
+                  key: REDIS_CONNECTION_URL
             - name: NEXT_PUBLIC_APP_URL
-              value: "http://localhost:3000"
+              value: "https://aiscrape.example.com"
+            - name: BROWSER_MODE
+              value: "remote"
+            - name: BRIGHT_DATA_BROWSER_WS
+              valueFrom:
+                secretKeyRef:
+                  name: aiscrape-secrets
+                  key: BRIGHT_DATA_BROWSER_WS
           ports:
             - containerPort: 3000
           resources:
@@ -79,8 +90,8 @@ spec:
     spec:
       containers:
         - name: worker
-          image: aiscrape:latest
-          imagePullPolicy: Never
+          image: ghcr.io/abhisek343/aiscrape:replace-me
+          imagePullPolicy: IfNotPresent
           command: ["npx", "tsx", "worker.ts"] # Override CMD to run worker
           env:
             - name: DATABASE_URL
@@ -89,7 +100,17 @@ spec:
                   name: aiscrape-secrets
                   key: DATABASE_URL
             - name: REDIS_CONNECTION_URL
-              value: "redis://redis-service:6379"
+              valueFrom:
+                secretKeyRef:
+                  name: aiscrape-secrets
+                  key: REDIS_CONNECTION_URL
+            - name: BROWSER_MODE
+              value: "remote"
+            - name: BRIGHT_DATA_BROWSER_WS
+              valueFrom:
+                secretKeyRef:
+                  name: aiscrape-secrets
+                  key: BRIGHT_DATA_BROWSER_WS
           resources:
             requests:
               cpu: "500m"
@@ -97,38 +118,3 @@ spec:
             limits:
               cpu: "2"
               memory: "4Gi" # Headless browsers need RAM
-
----
-
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redis
-  template:
-    metadata:
-      labels:
-        app: redis
-    spec:
-      containers:
-        - name: redis
-          image: redis:7-alpine
-          ports:
-            - containerPort: 6379
-
----
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis-service
-spec:
-  selector:
-    app: redis
-  ports:
-    - port: 6379
-      targetPort: 6379

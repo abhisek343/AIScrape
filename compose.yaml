@@ -1,0 +1,86 @@
+name: aiscrape
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: aiscrape
+      POSTGRES_USER: aiscrape
+      POSTGRES_PASSWORD: aiscrape-local-only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiscrape -d aiscrape"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - redis-data:/data
+
+  migrate:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+    command: ["npx", "prisma", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://aiscrape:aiscrape-local-only@postgres:5432/aiscrape?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+    command: ["node", "server.js"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://aiscrape:aiscrape-local-only@postgres:5432/aiscrape?schema=public
+      REDIS_CONNECTION_URL: redis://redis:6379
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NODE_ENV: production
+      BROWSER_MODE: local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "3000:3000"
+
+  worker:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+    command: ["npx", "tsx", "worker.ts"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://aiscrape:aiscrape-local-only@postgres:5432/aiscrape?schema=public
+      REDIS_CONNECTION_URL: redis://redis:6379
+      NODE_ENV: production
+      BROWSER_MODE: local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:
+  redis-data:
