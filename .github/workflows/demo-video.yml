@@ -1,0 +1,188 @@
+name: Cloud demo video
+
+on:
+  push:
+    branches:
+      - codex/cloud-demo-recordings
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Start dependencies
+        shell: bash
+        run: |
+          cp .env.example .env
+          {
+            echo "SCRAPE_ROBOTS_MODE=advisory"
+            echo "WORKER_SMOKE_URL=https://example.com"
+          } >> .env
+          docker compose up --build -d postgres redis
+          for attempt in $(seq 1 30); do
+            if docker compose exec -T postgres pg_isready -U aiscrape -d aiscrape >/dev/null 2>&1 && \
+              [ "$(docker compose exec -T redis redis-cli ping 2>/dev/null | tr -d '\r')" = "PONG" ]; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker compose ps
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Apply migrations and start web/worker
+        run: |
+          docker compose up --build migrate
+          docker compose up --build -d web worker
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://localhost:3000/ >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker compose ps
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Exercise a real worker job
+        run: docker compose exec -T worker npx tsx scripts/compose-worker-smoke.ts
+
+      - name: Record the browser demo from the worker container
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          mkdir -p /tmp/aiscrape-video
+          cat > /tmp/aiscrape-worker-record.cjs <<'NODE'
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const puppeteer = require("/app/node_modules/puppeteer");
+
+          (async () => {
+            const output = "/tmp/aiscrape-video";
+            fs.mkdirSync(output, { recursive: true });
+            const url = process.env.AISCRAPE_DEMO_URL;
+            if (!url) throw new Error("AISCRAPE_DEMO_URL is required");
+
+            const browser = await puppeteer.launch({
+              headless: true,
+              args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu"
+              ]
+            });
+            const page = await browser.newPage();
+            await page.setViewport({ width: 1280, height: 720 });
+            const client = await page.target().createCDPSession();
+            let frameIndex = 0;
+
+            client.on("Page.screencastFrame", async ({ data, sessionId }) => {
+              const filename = path.join(output, `frame-${String(frameIndex++).padStart(4, "0")}.png`);
+              fs.writeFileSync(filename, Buffer.from(data, "base64"));
+              await client.send("Page.screencastFrameAck", { sessionId }).catch(() => undefined);
+            });
+
+            await client.send("Page.startScreencast", {
+              format: "png",
+              quality: 80,
+              maxWidth: 1280,
+              maxHeight: 720,
+              everyNthFrame: 2
+            });
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Landing page returned HTTP ${response.status}`);
+            let html = await response.text();
+            const cssHrefs = [...html.matchAll(/<link[^>]+href=["']([^"']+\.css[^"']*)["'][^>]*>/gi)]
+              .map((match) => match[1]);
+            let css = "";
+            for (const href of [...new Set(cssHrefs)]) {
+              const stylesheet = await fetch(new URL(href, url));
+              if (stylesheet.ok) css += `\n${await stylesheet.text()}`;
+            }
+            html = html
+              .replace(/<script[\s\S]*?<\/script>/gi, "")
+              .replace(/<link[^>]+href=["'][^"']+\.css[^"']*["'][^>]*>/gi, "")
+              .replace("</head>", `<style>${css}</style></head>`);
+            await page.setContent(html, { waitUntil: "domcontentloaded" });
+            await new Promise((resolve) => setTimeout(resolve, 8000));
+            await page.screenshot({ path: path.join(output, "home.png") });
+            await client.send("Page.stopScreencast");
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            await browser.close();
+
+            if (frameIndex === 0) throw new Error("No screencast frames captured");
+            console.log(JSON.stringify({ event: "aiscrape.browser-demo.completed", url, frames: frameIndex }));
+          })().catch((error) => {
+            console.error(error instanceof Error ? error.stack : error);
+            process.exit(1);
+          });
+          NODE
+          web_container="$(docker compose ps -q web)"
+          web_ip="$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$web_container")"
+          worker_container="$(docker compose ps -q worker)"
+          test -n "$web_ip"
+          test -n "$worker_container"
+          docker cp /tmp/aiscrape-worker-record.cjs "$worker_container:/tmp/aiscrape-worker-record.cjs"
+          docker compose exec -T -e "AISCRAPE_DEMO_URL=http://$web_ip:3000" worker node /tmp/aiscrape-worker-record.cjs
+          docker cp "$worker_container:/tmp/aiscrape-video/." /tmp/aiscrape-video/
+          test -s /tmp/aiscrape-video/home.png
+          test -n "$(find /tmp/aiscrape-video -maxdepth 1 -type f -name 'frame-*.png' | head -n 1)"
+          mkdir -p docs/demo
+          ffmpeg -y -framerate 12 -i /tmp/aiscrape-video/frame-%04d.png -c:v libx264 -pix_fmt yuv420p -movflags +faststart docs/demo/aiscrape-demo.mp4
+          ffmpeg -y -i docs/demo/aiscrape-demo.mp4 \
+            -vf "fps=8,scale=900:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=sierra2" \
+            docs/demo/aiscrape-demo.gif
+          cp /tmp/aiscrape-video/home.png docs/demo/aiscrape-home.png
+
+      - name: Upload demo artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aiscrape-cloud-demo
+          path: docs/demo
+
+      - name: Stop the demo stack
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+      - name: Commit demo assets
+        shell: bash
+        run: |
+          mkdir -p /tmp/demo-assets
+          cp docs/demo/aiscrape-demo.mp4 /tmp/demo-assets/aiscrape-demo.mp4
+          cp docs/demo/aiscrape-demo.gif /tmp/demo-assets/aiscrape-demo.gif
+          cp docs/demo/aiscrape-home.png /tmp/demo-assets/aiscrape-home.png
+          rm -f docs/demo/aiscrape-demo.mp4
+          rm -f docs/demo/aiscrape-demo.gif
+          rm -f docs/demo/aiscrape-home.png
+          target_branch="$GITHUB_HEAD_REF"
+          if [ -z "$target_branch" ]; then target_branch="$GITHUB_REF_NAME"; fi
+          git fetch origin "$target_branch"
+          git checkout -B demo-assets "origin/$target_branch"
+          mkdir -p docs/demo
+          cp /tmp/demo-assets/aiscrape-demo.mp4 docs/demo/aiscrape-demo.mp4
+          cp /tmp/demo-assets/aiscrape-demo.gif docs/demo/aiscrape-demo.gif
+          cp /tmp/demo-assets/aiscrape-home.png docs/demo/aiscrape-home.png
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/demo/aiscrape-demo.mp4 docs/demo/aiscrape-demo.gif docs/demo/aiscrape-home.png
+          git diff --cached --quiet || git commit -m "docs: add cloud demo recording [skip ci]"
+          git push origin "demo-assets:$target_branch"
