@@ -27,7 +27,10 @@ services:
       - redis-data:/data
 
   migrate:
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
     command: ["npx", "prisma", "migrate", "deploy"]
     environment:
       DATABASE_URL: postgresql://aiscrape:aiscrape-local-only@postgres:5432/aiscrape?schema=public
@@ -36,7 +39,10 @@ services:
         condition: service_healthy
 
   web:
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
     command: ["node", "server.js"]
     env_file: .env
     environment:
@@ -56,7 +62,10 @@ services:
       - "3000:3000"
 
   worker:
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
     command: ["npx", "tsx", "worker.ts"]
     env_file: .env
     environment:
