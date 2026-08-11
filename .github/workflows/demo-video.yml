@@ -115,6 +115,9 @@ jobs:
           cp docs/demo/aiscrape-demo.mp4 /tmp/demo-assets/aiscrape-demo.mp4
           cp docs/demo/aiscrape-demo.gif /tmp/demo-assets/aiscrape-demo.gif
           cp docs/demo/aiscrape-home.png /tmp/demo-assets/aiscrape-home.png
+          rm -f docs/demo/aiscrape-demo.mp4
+          rm -f docs/demo/aiscrape-demo.gif
+          rm -f docs/demo/aiscrape-home.png
           target_branch="$GITHUB_HEAD_REF"
           if [ -z "$target_branch" ]; then target_branch="$GITHUB_REF_NAME"; fi
           git fetch origin "$target_branch"
