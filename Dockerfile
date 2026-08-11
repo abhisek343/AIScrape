@@ -5,6 +5,9 @@ FROM node:20-alpine AS base
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
+# Prisma's npm postinstall runs prisma generate, so the schema must be
+# available in the dependency layer before npm ci executes.
+COPY prisma ./prisma
 # Install dependencies (incorporating sharp handling for Next.js image optimization if needed)
 RUN npm ci
 
