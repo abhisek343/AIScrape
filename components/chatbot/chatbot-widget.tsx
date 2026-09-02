@@ -143,18 +143,22 @@ function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWid
       // Prepare context if available
       let contextData = {};
       let currentDefinition: string | undefined;
-      if (getFlowState) {
-        const state = getFlowState();
-        if (state) {
-          contextData = {
-            nodeCount: state.nodes.length,
-            edgeCount: state.edges.length,
-            selectedNodes: state.nodes.filter((n: any) => n.selected).map((n: any) => n.id)
-          };
-          currentDefinition = JSON.stringify({
-            nodes: state.nodes,
-            edges: state.edges,
-          });
+      if (typeof getFlowState === 'function') {
+        try {
+          const state = getFlowState();
+          if (state) {
+            contextData = {
+              nodeCount: state.nodes?.length || 0,
+              edgeCount: state.edges?.length || 0,
+              selectedNodes: state.nodes?.filter((n: any) => n.selected).map((n: any) => n.id) || []
+            };
+            currentDefinition = JSON.stringify({
+              nodes: state.nodes || [],
+              edges: state.edges || [],
+            });
+          }
+        } catch (stateErr) {
+          console.warn("Could not retrieve flow state for chatbot:", stateErr);
         }
       }
 
@@ -227,8 +231,6 @@ function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWid
       setIsLoading(false);
     }
   };
-
-  console.log("DEBUG: ChatbotWidget Rendered");
 
   // Don't render anything until mounted to prevent hydration mismatch with AnimatePresence
   if (!mounted) return null;

@@ -37,9 +37,9 @@ export default function CredentialsPage() {
 }
 
 async function UserCredentials() {
-  const data = await getCredentialsForUser();
+  const credentials = await getCredentialsForUser();
 
-  if (!data) {
+  if (!credentials) {
     return (
       <Alert variant="destructive">
         <ShieldOffIcon className="h-4 w-4" />
@@ -48,8 +48,6 @@ async function UserCredentials() {
       </Alert>
     );
   }
-
-  const { credentials } = data;
 
   if (credentials.length === 0) {
     return (

@@ -8,6 +8,7 @@ import { safeJsonParse } from '@/lib/safe-json';
 import { flowToExecutionPlan } from '@/lib/workflow/execution-plan';
 import { TaskRegistry } from '@/lib/workflow/task/registry';
 import { submitWorkflowToQueue } from '@/lib/queue/workflow.queue';
+import { executeWorkflow } from '@/lib/workflow/execute-workflow';
 import {
   ExecutionPhaseStatus,
   WorkflowExecutionPlan,
@@ -128,20 +129,14 @@ export async function runWorkflow(params: RunWorkflowParams): Promise<WorkflowEx
     throw new Error('Workflow execution not created');
   }
 
-  // Submit workflow to queue instead of running directly
+  // Submit workflow to queue; fallback to direct async execution if queue is unavailable
   try {
     await submitWorkflowToQueue(workflowId, execution.id);
   } catch (error) {
-    console.error(`Failed to submit workflow to queue: ${error}`);
-    // Optional: Fail the execution immediately if queue submission fails
-    await prisma.workflowExecution.update({
-      where: { id: execution.id },
-      data: {
-        status: WorkflowExecutionStatus.FAILED,
-        completedAt: new Date(),
-      },
+    console.warn(`Queue submission unavailable (${error}), falling back to direct background execution`);
+    executeWorkflow(execution.id).catch((execErr) => {
+      console.error(`Direct execution fallback failed for execution ${execution.id}:`, execErr);
     });
-    throw new Error('Failed to submit workflow');
   }
 
   if (shouldRedirect) {

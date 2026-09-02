@@ -66,7 +66,7 @@ export default function Editor({ workflow }: { workflow: Workflow }) {
                 <FlowEditor
                   workflow={workflow}
                   registerAutoLayout={(fn) => (autoLayout.current = fn as any)}
-                  onGetState={setGetFlowState as any}
+                  onGetState={(fn) => setGetFlowState(() => fn)}
                 />
               </div>
             </section>
