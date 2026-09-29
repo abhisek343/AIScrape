@@ -6,10 +6,11 @@ import ExecutionsTable from '@/app/workflow/runs/[workflowId]/_components/execut
 
 import { getWorkflowExecutions } from '@/actions/workflows/get-workflow-executions';
 
-export default function ExecutionsPage({ params }: { params: { workflowId: string } }) {
+export default async function ExecutionsPage({ params }: { params: Promise<{ workflowId: string }> }) {
+  const { workflowId } = await params;
   return (
     <div className="h-full w-full overflow-auto">
-      <Topbar workflowId={params.workflowId} hideButtons title="All runs" subtitle="List of all you workflow runs" />
+      <Topbar workflowId={workflowId} hideButtons title="All runs" subtitle="List of all you workflow runs" />
       <Suspense
         fallback={
           <div className="flex h-full w-full justify-center items-center">
@@ -17,7 +18,7 @@ export default function ExecutionsPage({ params }: { params: { workflowId: strin
           </div>
         }
       >
-        <ExecutionsTableWrapper workflowId={params.workflowId} />
+        <ExecutionsTableWrapper workflowId={workflowId} />
       </Suspense>
     </div>
   );

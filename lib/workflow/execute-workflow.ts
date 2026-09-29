@@ -267,7 +267,8 @@ async function executeWorkflowPhase(phase: ExecutionPhase, environment: Environm
 
   const creditsRequired = taskDefinition.credits ?? 0;
 
-  let success = await decrementCredits(userId, creditsRequired, logCollector);
+  // Free nodes do not need a balance record or a database charge.
+  let success = creditsRequired === 0 || await decrementCredits(userId, creditsRequired, logCollector);
   const creditsConsumed = success ? creditsRequired : 0;
 
   if (success) {
@@ -479,8 +480,8 @@ async function cleanupEnvironment(environment: Environment) {
 
     // Then close/disconnect browser
     if (environment.browser) {
-      if (process.env.NODE_ENV !== 'production') {
-        // Close locally in dev
+      if (process.env.BROWSER_MODE !== 'remote') {
+        // A local Chromium process must be closed even in production Compose.
         await environment.browser.close().catch((err: Error) =>
           console.error('Cannot close browser, reason:', err)
         );

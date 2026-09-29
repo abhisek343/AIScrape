@@ -5,4 +5,5 @@ module.exports = {
         '^@/(.*)$': '<rootDir>/$1',
     },
     setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+    modulePathIgnorePatterns: ['<rootDir>/.next/'],
 };

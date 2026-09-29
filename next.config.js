@@ -2,8 +2,6 @@
 const nextConfig = {
   // The same image serves the web application and the queue worker.
   output: 'standalone',
-  eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true },
 
   // Performance optimizations - tree-shake heavy packages
   experimental: {

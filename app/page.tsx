@@ -1,6 +1,6 @@
-import nextDynamic from 'next/dynamic';
+'use client';
 
-export const dynamic = 'force-static';
+import nextDynamic from 'next/dynamic';
 
 const Header = nextDynamic(() => import('@/components/landing/header'));
 const Hero = nextDynamic(() => import('@/components/landing/hero'));

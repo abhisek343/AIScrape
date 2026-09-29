@@ -10,7 +10,8 @@ const isPublicRoute = createRouteMatcher([
   '/blog',
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/api/workflows/(.*)*',
+  '/api/workflows/cron',
+  '/api/workflows/execute',
   '/api/webhooks/stripe',
 ]);
 

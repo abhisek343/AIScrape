@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { isRedirectError } from 'next/dist/client/components/redirect';
+import { isRedirectError } from 'next/dist/client/components/redirect-error';
 import { toast } from 'sonner';
 import { createWorkflow } from '@/actions/workflows/create-workflow';
 import { buildDefinitionFromAiSpec, type AiAutomationSpec } from '@/lib/workflow/ai-automation';
