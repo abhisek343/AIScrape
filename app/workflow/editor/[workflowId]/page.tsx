@@ -4,8 +4,8 @@ import Editor from '@/app/workflow/_components/editor';
 
 import prisma from '@/lib/prisma';
 
-export default async function EditorPage({ params }: { params: { workflowId: string } }) {
-  const { workflowId } = params;
+export default async function EditorPage({ params }: { params: Promise<{ workflowId: string }> }) {
+  const { workflowId } = await params;
 
   const { userId } = auth();
 

@@ -1,6 +1,44 @@
-# AIScrape 🚀
+# AIScrape
 
-AIScrape is a powerful, intuitive platform that simplifies web crawling by enabling you to build, manage, and scale complex data extraction workflows with ease.
+AIScrape is a Next.js workflow editor with a PostgreSQL execution history, Redis/BullMQ worker, and local Chromium browser tasks. The local queue/browser smoke uses temporary synthetic account data and a public test page.
+
+## Quick Start
+
+On Linux or Windows with WSL2 and Docker Desktop (WSL integration enabled):
+
+```bash
+git clone https://github.com/abhisek343/AIScrape.git
+cd AIScrape
+cp .env.example .env
+docker compose up --build -d
+docker compose exec -T worker npx tsx scripts/compose-worker-smoke.ts
+docker compose logs --tail=50 worker
+```
+
+Open http://localhost:3000 for the landing page. The smoke submits a two-node browser → HTML workflow, checks the persisted output, and deletes its temporary records. For the authenticated workflow editor, configure your own Clerk test keys in `.env`. The placeholder keys do not provide login. Stripe, Gemini, and managed browser integrations likewise require their own credentials. Never commit `.env`.
+
+## Interview Demo — 5 Minutes
+
+1. Open this README and the architecture sketch below; point to the Next.js web process, PostgreSQL, Redis queue, and worker.
+2. Show the landing page at `localhost:3000` and `docker compose ps` for service state.
+3. Run the smoke command above; explain the linked `LAUNCH_BROWSER` → `PAGE_TO_HTML` nodes and the IANA test target. Show the `compose-worker-smoke.completed` JSON line with `htmlBytes` and the worker `job.started`/`job.completed` lines.
+4. Show `lib/scraping/target-policy.ts` and its tests, then try a private address in a locally defined workflow to demonstrate rejection. The editor and run-history UI need valid Clerk test keys; with those keys, create the same two nodes in the editor and view execution phases in Runs.
+5. Show `docker compose exec -T redis redis-cli ping` and the queue retry/dead-letter configuration in `lib/queue/workflow.queue.ts`.
+
+This credential-free command-line demo verifies browser extraction and worker persistence. It does not demonstrate authenticated UI creation or third-party billing/AI features.
+
+## Architecture Decisions
+
+```mermaid
+flowchart LR
+  UI[Next.js editor and API] --> DB[(PostgreSQL / Prisma)]
+  UI --> Q[(Redis / BullMQ)]
+  Q --> Worker[Workflow worker]
+  Worker --> Browser[Local Chromium]
+  Worker --> DB
+```
+
+Execution IDs become BullMQ job IDs for duplicate submission protection. The worker owns browser execution so web requests can return promptly. The target policy validates destinations and DNS before requests; keep the host allowlist narrow for shared deployments. Local Chromium avoids a paid browser service, at the cost of a larger image and per-worker browser resource limits. This is a reference implementation with a tested local smoke path, not evidence of third-party integrations or broad production load testing.
 
 ## ✨ Features
 
@@ -28,8 +66,7 @@ AIScrape is a powerful, intuitive platform that simplifies web crawling by enabl
 
 ### Prerequisites
 
-- Node.js (v18.x or later)
-- npm, yarn, or pnpm
+- Node.js 20 for host-side commands, npm, and Docker Compose
 
 ### Installation
 
@@ -41,7 +78,7 @@ AIScrape is a powerful, intuitive platform that simplifies web crawling by enabl
 
 2.  **Install dependencies:**
     ```bash
-    npm install
+    npm ci
     ```
 
 3.  **Start the reproducible local stack:**

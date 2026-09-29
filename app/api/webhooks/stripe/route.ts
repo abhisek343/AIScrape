@@ -6,7 +6,7 @@ import { handleCheckoutSessionCompleted } from '@/lib/stripe/handle-checkout-ses
 
 export async function POST(request: Request) {
   const body = await request.text();
-  const signature = headers().get('stripe-signature') as string;
+  const signature = (await headers()).get('stripe-signature') ?? '';
 
   try {
     if (!process.env.STRIPE_WEBHOOK_SECRET) {

@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   demo:
@@ -162,27 +162,3 @@ jobs:
       - name: Stop the demo stack
         if: always()
         run: docker compose down --volumes --remove-orphans
-
-      - name: Commit demo assets
-        shell: bash
-        run: |
-          mkdir -p /tmp/demo-assets
-          cp docs/demo/aiscrape-demo.mp4 /tmp/demo-assets/aiscrape-demo.mp4
-          cp docs/demo/aiscrape-demo.gif /tmp/demo-assets/aiscrape-demo.gif
-          cp docs/demo/aiscrape-home.png /tmp/demo-assets/aiscrape-home.png
-          rm -f docs/demo/aiscrape-demo.mp4
-          rm -f docs/demo/aiscrape-demo.gif
-          rm -f docs/demo/aiscrape-home.png
-          target_branch="$GITHUB_HEAD_REF"
-          if [ -z "$target_branch" ]; then target_branch="$GITHUB_REF_NAME"; fi
-          git fetch origin "$target_branch"
-          git checkout -B demo-assets "origin/$target_branch"
-          mkdir -p docs/demo
-          cp /tmp/demo-assets/aiscrape-demo.mp4 docs/demo/aiscrape-demo.mp4
-          cp /tmp/demo-assets/aiscrape-demo.gif docs/demo/aiscrape-demo.gif
-          cp /tmp/demo-assets/aiscrape-home.png docs/demo/aiscrape-home.png
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/demo/aiscrape-demo.mp4 docs/demo/aiscrape-demo.gif docs/demo/aiscrape-home.png
-          git diff --cached --quiet || git commit -m "docs: add cloud demo recording [skip ci]"
-          git push origin "demo-assets:$target_branch"

@@ -3,7 +3,7 @@ import parser from 'cron-parser';
 
 import prisma from '@/lib/prisma';
 import { TaskRegistry } from '@/lib/workflow/task/registry';
-import { executeWorkflow } from '@/lib/workflow/execute-workflow';
+import { submitWorkflowToQueue } from '@/lib/queue/workflow.queue';
 import { safeJsonParse, validateJsonSchema } from '@/lib/safe-json';
 import {
   ExecutionPhaseStatus,
@@ -92,7 +92,7 @@ export async function GET(req: Request) {
     const executionCount = await prisma.workflowExecution.count({
       where: {
         userId: workflow.userId, // Rate limit per USER, not per workflow
-        startedAt: {
+        createdAt: {
           gte: lastHour,
         },
       },
@@ -103,11 +103,6 @@ export async function GET(req: Request) {
         { error: `Rate limit exceeded: ${MAX_EXECUTIONS_PER_HOUR} executions per hour allowed` },
         { status: 429 }
       );
-    }
-
-    if (!workflow) {
-      console.warn(`Workflow not found: ${workflowId}`);
-      return Response.json({ error: 'Workflow not found' }, { status: 404 });
     }
 
     // Validate workflow is published and has cron
@@ -176,21 +171,22 @@ export async function GET(req: Request) {
       },
     });
 
-    // Update workflow's next run time BEFORE triggering execution
-    // This prevents the race condition where a failing workflow gets retried indefinitely
+    // The web request only submits the job; the worker owns browser execution.
+    try {
+      await submitWorkflowToQueue(workflowId, execution.id);
+    } catch (error) {
+      await prisma.workflowExecution.update({
+        where: { id: execution.id },
+        data: { status: WorkflowExecutionStatus.FAILED, completedAt: new Date() },
+      });
+      console.error('Cannot enqueue scheduled workflow', { workflowId, executionId: execution.id, error });
+      return Response.json({ error: 'Queue submission failed', executionId: execution.id }, { status: 503 });
+    }
+
     await prisma.workflow.update({
       where: { id: workflowId },
-      data: { nextRunAt: nextRun }
+      data: { nextRunAt: nextRun },
     });
-
-    // Execute workflow in background with proper error handling
-    executeWorkflow(execution.id, nextRun)
-      .then(() => {
-        console.log(`Cron workflow execution ${execution.id} completed successfully`);
-      })
-      .catch((error) => {
-        console.error(`Cron workflow execution ${execution.id} failed:`, error);
-      });
 
     return Response.json({
       success: true,
