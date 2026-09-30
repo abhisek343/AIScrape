@@ -10,10 +10,13 @@ On Linux or Windows with WSL2 and Docker Desktop (WSL integration enabled):
 git clone https://github.com/abhisek343/AIScrape.git
 cd AIScrape
 cp .env.example .env
+sed -i 's/^SCRAPE_ROBOTS_MODE=.*/SCRAPE_ROBOTS_MODE=advisory/' .env
 docker compose up --build -d
 docker compose exec -T worker npx tsx scripts/compose-worker-smoke.ts
 docker compose logs --tail=50 worker
 ```
+
+The advisory robots setting above matches CI for this controlled local smoke against the allowed public test page. It avoids failing the demo when that site's robots.txt endpoint is unavailable; destination and SSRF checks still apply. `.env.example` retains strict robots handling as the default for other use.
 
 Open http://localhost:3000 for the landing page. The smoke submits a two-node browser → HTML workflow, checks the persisted output, and deletes its temporary records. For the authenticated workflow editor, configure your own Clerk test keys in `.env`. The placeholder keys do not provide login. Stripe, Gemini, and managed browser integrations likewise require their own credentials. Never commit `.env`.
 
