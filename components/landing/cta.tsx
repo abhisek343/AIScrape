@@ -31,15 +31,15 @@ export default function CTA() {
 
           <div className="relative p-8 md:p-12 text-center">
             <h3 className="text-2xl md:text-3xl font-bold tracking-tight">
-              Start building reliable web data pipelines today
+              Build a workflow, queue it, and inspect the run
             </h3>
             <p className="mt-3 text-emerald-50/90 max-w-2xl mx-auto">
-              Build your first workflow in minutes. Schedule runs and stream results to your stack.
+              The core execution path is reproducible locally with Docker Compose. Use your own test credentials when you want to exercise authentication, AI, or billing features.
             </p>
             <div className="mt-6 flex justify-center">
               <Link href="/sign-up">
                 <Button size="lg" variant="secondary" className="text-emerald-900">
-                  Start free trial
+                  Open workflow editor
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
@@ -50,5 +50,3 @@ export default function CTA() {
     </section>
   );
 }
-
-
