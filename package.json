@@ -9,8 +9,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate",
-    "benchmark:queue": "tsx scripts/load-test.ts"
+    "benchmark:queue": "tsx scripts/load-test.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@clerk/nextjs": "^5.7.6",
