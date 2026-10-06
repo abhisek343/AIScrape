@@ -57,6 +57,7 @@ async function runQueueEnqueueBenchmark(concurrency: number, totalJobs: number) 
         // benchmark jobs, so cleaning it cannot affect workflow executions.
         await queue.drain(true);
         await queue.close();
+        redisConnection.disconnect();
     }
 }
 
