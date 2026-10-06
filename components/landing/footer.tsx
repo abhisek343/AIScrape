@@ -22,15 +22,15 @@ export default function Footer() {
       title: 'Site',
       links: [
         { name: 'About', href: '/about' },
-        { name: 'Blog', href: '/blog' },
+        { name: 'Engineering Notes', href: '/blog' },
         { name: 'Contact', href: '/contact' },
       ],
     },
     {
       title: 'Legal',
       links: [
-        { name: 'Privacy', href: '/privacy-policy' },
-        { name: 'Terms', href: '/terms-of-service' },
+        { name: 'Privacy note', href: '/privacy-policy' },
+        { name: 'Responsible use', href: '/terms-of-service' },
       ],
     },
   ];
