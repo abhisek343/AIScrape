@@ -27,7 +27,7 @@ export default function Header() {
     { name: 'Showcase', href: '#showcase' },
     { name: 'Use Cases', href: '#use-cases' },
     { name: 'How It Works', href: '#how-it-works' },
-    { name: 'Blog', href: '/blog' },
+    { name: 'Engineering Notes', href: '/blog' },
   ];
 
   return (
