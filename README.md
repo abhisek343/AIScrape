@@ -162,6 +162,14 @@ npm run build
 
 `scripts/load-test.ts` is an **enqueue-path benchmark**, not an end-to-end browser throughput benchmark. It measures how quickly producers can submit jobs to Redis/BullMQ under bounded producer concurrency.
 
+Run it with Redis available:
+
+```bash
+npm run benchmark:queue
+# optional: producer concurrency, total jobs
+npm run benchmark:queue -- 50 5000
+```
+
 It must not be used as evidence for browser-execution throughput, maximum supported users, or production capacity.
 
 ## Repository map
@@ -175,6 +183,7 @@ lib/scraping/            Target policy, robots policy, response limits, rate lim
 prisma/                  Schema and migrations
 scripts/                 Compose smoke, queue benchmark, local utilities
 docs/OPERATIONS.md       Operations and deployment notes
+docs/DEVELOPMENT.md      Task-extension and verification notes
 SYSTEM_DESIGN.md         Architecture and execution design
 worker.ts                Standalone BullMQ worker process
 compose.yaml             Reproducible PostgreSQL + Redis + web + worker stack
