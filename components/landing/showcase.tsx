@@ -17,7 +17,7 @@ const items = [
   {
     icon: Boxes,
     title: 'Runtime & retries',
-    desc: 'Headless browser, smart waiting, anti-bot, and automatic retries.'
+    desc: 'Chromium execution, wait controls, queue retries, and persisted run state.'
   }
 ];
 
@@ -218,7 +218,7 @@ export default function Showcase() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 rounded-full text-sm font-semibold mb-8 border border-emerald-200/60 dark:border-emerald-800/60 backdrop-blur-sm"
           >
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-            Built for production
+            Queue-backed runtime
           </motion.div>
           
           <motion.h2
@@ -228,9 +228,9 @@ export default function Showcase() {
             transition={{ duration: 0.8, ease: [0.25, 0.25, 0, 1] }}
             className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 dark:text-white mb-6"
           >
-            Build dependable workflows.
+            Build inspectable workflows.
             <span className="block bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 bg-clip-text text-transparent">
-              Ship with retries and monitoring.
+              Execute them outside the request path.
             </span>
           </motion.h2>
           <motion.p
@@ -240,7 +240,7 @@ export default function Showcase() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-xl md:text-2xl text-slate-600 dark:text-slate-300 max-w-4xl mx-auto leading-relaxed font-normal tracking-normal"
           >
-            Visual builder, AI-assisted extraction, and a managed runtime with Chromium, smart waiting, and automatic retries.
+            Visual graph editing, optional AI extraction, and a dedicated worker runtime with Chromium, retries, and persisted execution state.
           </motion.p>
         </div>
 
