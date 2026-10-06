@@ -5,20 +5,20 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 
 const faqs = [
   {
-    q: 'How does the free trial work?',
-    a: 'You get full access for 14 days with 5,000 credits. No credit card required. Upgrade anytime, cancel anytime.'
+    q: 'Can I run AIScrape without paid infrastructure?',
+    a: 'Yes. The core demo runs PostgreSQL, Redis, the Next.js app, a BullMQ worker, and local Chromium with Docker Compose. Authenticated UI, Gemini, Stripe, and remote-browser features require their own test credentials.'
   },
   {
-    q: 'Is AIScrape compliant for enterprise use?',
-    a: 'Yes. We support SSO (Okta, Azure AD), audit logs, and encryption in transit and at rest. SOC 2 is in progress.'
+    q: 'Why is workflow execution handled by a worker?',
+    a: 'Browser automation is long-running and resource-heavy. AIScrape persists the execution plan, enqueues an execution ID in BullMQ, and lets a separate worker run Chromium tasks while the web request returns promptly.'
   },
   {
-    q: 'Do you support rotating proxies and headless browsers?',
-    a: 'Absolutely. Our managed runtime includes smart rotation, anti-bot evasion, and Chromium-based execution.'
+    q: 'How are browser targets constrained?',
+    a: 'The browser path accepts HTTP(S) targets, rejects private and reserved network destinations, resolves hostnames before use, supports host allowlists, and includes robots-policy and per-host pacing controls.'
   },
   {
-    q: 'Can I integrate with my stack?',
-    a: 'Yes. Use our REST API and webhooks; or export to S3, GCS, BigQuery, Postgres, and Kafka.'
+    q: 'Does the queue benchmark represent production capacity?',
+    a: 'No. The included benchmark measures Redis/BullMQ enqueue throughput only. End-to-end browser capacity must be measured separately with representative workflows and infrastructure.'
   }
 ];
 
@@ -34,7 +34,7 @@ export default function FAQ() {
             transition={{ duration: 0.45 }}
             className="text-4xl md:text-5xl font-extrabold tracking-tight"
           >
-            Frequently asked questions
+            Project questions
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
@@ -43,7 +43,7 @@ export default function FAQ() {
             transition={{ duration: 0.45, delay: 0.1 }}
             className="mt-4 text-muted-foreground max-w-2xl mx-auto"
           >
-            Everything you need to know about getting started and scaling with AIScrape.
+            What the repository can reproduce, how execution works, and where the current boundaries are.
           </motion.p>
         </div>
 
@@ -63,6 +63,3 @@ export default function FAQ() {
     </section>
   );
 }
-
-
-

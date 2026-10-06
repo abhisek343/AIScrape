@@ -92,7 +92,7 @@ model ExecutionLog {
   executionPhase   ExecutionPhase @relation(fields: [executionPhaseId], references: [id], onDelete: Cascade)
 }
 
-// Fixed naming: keep DB table as "UserBalanace" via map to avoid migration
+// Credit balance for the authenticated user.
 model UserBalance {
   userId  String @id
   credits Int    @default(0)

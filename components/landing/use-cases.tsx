@@ -2,38 +2,38 @@
 
 import { motion } from 'framer-motion';
 import { useCallback } from 'react';
-import { Briefcase, ShoppingCart, Newspaper, Banknote, Microscope, Rocket } from 'lucide-react';
+import { ShoppingCart, Newspaper, ScanSearch, Braces, Webhook, Clock } from 'lucide-react';
 
 const cases = [
   {
-    icon: Briefcase,
-    title: 'Lead generation',
-    desc: 'Prospect at scale across directories, review sites, and social profiles.',
-  },
-  {
     icon: ShoppingCart,
-    title: 'E‑commerce pricing',
-    desc: 'Monitor prices, stock, and content across retailers and marketplaces.',
+    title: 'Catalog monitoring',
+    desc: 'Extract price, stock, and product-page fields from sites you are authorized to automate.',
   },
   {
     icon: Newspaper,
-    title: 'News & research',
-    desc: 'Track coverage, references, and insights from millions of pages.',
+    title: 'Research collection',
+    desc: 'Capture article or documentation content and transform it into structured workflow outputs.',
   },
   {
-    icon: Banknote,
-    title: 'Investment signals',
-    desc: 'Extract alternative data for quant models and due diligence.',
+    icon: ScanSearch,
+    title: 'Page change checks',
+    desc: 'Schedule browser workflows that revisit allowed targets and capture selected content.',
   },
   {
-    icon: Microscope,
-    title: 'Compliance monitoring',
-    desc: 'Audit web content changes for regulated industries and vendors.',
+    icon: Braces,
+    title: 'Structured extraction',
+    desc: 'Combine HTML, selectors, regex, JSON utilities, and optional AI extraction in one graph.',
   },
   {
-    icon: Rocket,
-    title: 'Market intelligence',
-    desc: 'Continuously analyze competitor launches, pages, and messaging.',
+    icon: Webhook,
+    title: 'API and webhook delivery',
+    desc: 'Call external APIs from a workflow and deliver extracted results to downstream systems.',
+  },
+  {
+    icon: Clock,
+    title: 'Scheduled automation',
+    desc: 'Persist cron schedules and run repeatable workflows through the same queue-backed worker path.',
   },
 ];
 
@@ -49,8 +49,7 @@ export default function UseCases() {
   }, []);
 
   const handleMouseLeave = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    el.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg)';
+    e.currentTarget.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg)';
   }, []);
 
   return (
@@ -64,7 +63,7 @@ export default function UseCases() {
             transition={{ duration: 0.5 }}
             className="text-4xl md:text-5xl font-extrabold tracking-tight"
           >
-            Purpose‑built for your team
+            Example workflow patterns
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 16 }}
@@ -73,7 +72,7 @@ export default function UseCases() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="mt-4 text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto"
           >
-            Each use case includes a ready‑to‑run template and live example you can clone.
+            These are examples of what the node library can express. Target authorization, robots policy, and deployment configuration still apply.
           </motion.p>
         </div>
 
@@ -106,7 +105,7 @@ export default function UseCases() {
                 <p className="mt-2 text-sm text-muted-foreground">{c.desc}</p>
               </div>
               <div className="px-6 pb-4 text-sm text-emerald-700 dark:text-emerald-300">
-                Explore template →
+                Compose with workflow nodes
               </div>
             </motion.div>
           ))}
@@ -115,5 +114,3 @@ export default function UseCases() {
     </section>
   );
 }
-
-

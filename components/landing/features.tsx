@@ -22,34 +22,34 @@ import {
 const mainFeatures = [
   {
     icon: Workflow,
-    title: 'Visual Workflow Builder',
-    description: 'Design complex scraping logic with our intuitive drag-and-drop interface. No coding required.',
+    title: 'Visual workflow builder',
+    description: 'Compose browser, extraction, data, and integration tasks as a node graph with typed inputs and outputs.',
     color: 'primary'
   },
   {
     icon: Calendar,
-    title: 'Smart Scheduling',
-    description: 'Run workflows on custom schedules with intelligent retry logic and timezone support.',
+    title: 'Scheduled execution',
+    description: 'Persist cron schedules and submit repeatable runs through the same queue-backed worker path.',
     color: 'chart-1'
   },
   {
     icon: BarChart3,
-    title: 'Real-time Analytics',
-    description: 'Monitor performance, track success rates, and get detailed insights into your data operations.',
+    title: 'Execution history',
+    description: 'Inspect workflow runs, phase status, outputs, credit usage, and diagnostic logs persisted in PostgreSQL.',
     color: 'chart-2'
   }
 ];
 
 const additionalFeatures = [
-  { icon: Shield, title: 'Enterprise Security', desc: 'SOC 2 compliant with end-to-end encryption' },
-  { icon: Globe, title: 'Global Infrastructure', desc: 'Deploy across multiple regions for optimal performance' },
-  { icon: Zap, title: 'High Performance', desc: 'Process thousands of pages per minute' },
-  { icon: Database, title: 'Data Processing', desc: 'Clean, validate, and transform data automatically' },
-  { icon: Lock, title: 'Secure Credentials', desc: 'Safely store and manage API keys and secrets' },
-  { icon: Code, title: 'API & Webhooks', desc: 'Integrate with your existing tools and workflows' },
-  { icon: AlertTriangle, title: 'Smart Alerts', desc: 'Get notified when workflows fail or need attention' },
-  { icon: TrendingUp, title: 'Scalable Architecture', desc: 'Auto-scale based on demand without manual intervention' },
-  { icon: Users, title: 'Team Collaboration', desc: 'Share workflows and manage permissions across teams' }
+  { icon: Shield, title: 'Target policy', desc: 'Reject private, loopback, link-local, reserved, and non-HTTP(S) destinations' },
+  { icon: Globe, title: 'Host allowlists', desc: 'Constrain shared deployments to explicitly permitted target hostnames' },
+  { icon: Zap, title: 'Retries & dead-lettering', desc: 'Retry failed jobs with exponential backoff and preserve terminal failures for inspection' },
+  { icon: Database, title: 'Persisted run state', desc: 'Store workflow executions, phases, outputs, logs, and status transitions in PostgreSQL' },
+  { icon: Lock, title: 'Credential handling', desc: 'Keep workflow credentials on the server-side credential path instead of embedding them in graphs' },
+  { icon: Code, title: 'HTTP & webhooks', desc: 'Call external APIs and deliver workflow results through dedicated integration nodes' },
+  { icon: AlertTriangle, title: 'Responsible crawling controls', desc: 'Apply robots-policy handling and Redis-backed per-host pacing' },
+  { icon: TrendingUp, title: 'Worker isolation', desc: 'Keep browser execution outside the web request process and scale workers independently when measured' },
+  { icon: Users, title: 'User-scoped workflows', desc: 'Persist workflow ownership, execution history, credentials, and usage state per user' }
 ];
 
 export default function Features() {
@@ -148,7 +148,7 @@ export default function Features() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 rounded-full text-sm font-semibold mb-8 border border-emerald-200/60 dark:border-emerald-800/60 backdrop-blur-sm"
           >
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-            Production-Ready Features
+            Engineering features
           </motion.div>
           
           <motion.h2
@@ -158,9 +158,9 @@ export default function Features() {
             transition={{ duration: 0.8, ease: [0.25, 0.25, 0, 1] }}
             className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 dark:text-white mb-6"
           >
-            Everything you need for
+            A workflow engine you can
             <span className="block bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 bg-clip-text text-transparent">
-              production scraping
+              inspect end to end
             </span>
           </motion.h2>
           <motion.p
@@ -170,7 +170,7 @@ export default function Features() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-xl md:text-2xl text-slate-600 dark:text-slate-300 max-w-4xl mx-auto leading-relaxed"
           >
-            Build, deploy, and monitor web scraping workflows with <span className="font-semibold text-emerald-600 dark:text-emerald-400">enterprise-grade tools</span> designed for scale and reliability.
+            Build and inspect browser workflows with <span className="font-semibold text-emerald-600 dark:text-emerald-400">queue-backed execution, durable run state, and explicit target controls</span>.
           </motion.p>
         </div>
 
@@ -275,18 +275,18 @@ export default function Features() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 rounded-full text-sm font-semibold mb-6 border border-emerald-200/60 dark:border-emerald-800/60"
             >
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-              Join 2,500+ Companies
+              Reproducible locally
             </motion.div>
             
             <h3 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-6">
-              Ready to scale your
+              Ready to inspect the
               <span className="block bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 bg-clip-text text-transparent">
-                data operations?
+                full execution path?
               </span>
             </h3>
             
             <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 mb-10 max-w-3xl mx-auto leading-relaxed">
-              Join thousands of companies using <span className="font-semibold text-emerald-600 dark:text-emerald-400">AIScrape</span> to automate their web data collection workflows with enterprise-grade reliability.
+              Run the Compose stack, submit a real queued workflow, watch the worker launch Chromium, and inspect the persisted result.
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -298,7 +298,7 @@ export default function Features() {
                 >
                   <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl blur opacity-70 group-hover:opacity-100 transition duration-300"></div>
                   <Button size="lg" className="relative bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-10 py-4 text-lg font-semibold shadow-2xl shadow-emerald-500/25 transition-all duration-300 rounded-xl">
-                    Start free trial
+                    Open workflow editor
                     <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-200" />
                   </Button>
                 </motion.div>
@@ -311,7 +311,7 @@ export default function Features() {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="text-sm text-slate-500 dark:text-slate-400"
               >
-                No credit card required • Setup in 5 minutes
+                Core queue/browser smoke does not require paid browser infrastructure
               </motion.div>
             </div>
           </div>

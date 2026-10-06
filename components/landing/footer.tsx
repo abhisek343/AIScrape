@@ -2,8 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Input } from '@/components/ui/input';
-import { Github, Twitter, Linkedin, Mail } from 'lucide-react';
+import { Github } from 'lucide-react';
 import Logo from '@/components/logo';
 
 export default function Footer() {
@@ -11,28 +10,27 @@ export default function Footer() {
 
   const columns = [
     {
-      title: 'Product',
+      title: 'Project',
       links: [
         { name: 'Features', href: '#features' },
         { name: 'How It Works', href: '#how-it-works' },
-        { name: 'Showcase', href: '#showcase' },
-        { name: 'Integrations', href: '/integrations' },
+        { name: 'Use Cases', href: '#use-cases' },
+        { name: 'FAQ', href: '#faq' },
       ],
     },
     {
-      title: 'Company',
+      title: 'Site',
       links: [
         { name: 'About', href: '/about' },
-        { name: 'Blog', href: '/blog' },
-        { name: 'Careers', href: '/careers' },
+        { name: 'Engineering Notes', href: '/blog' },
         { name: 'Contact', href: '/contact' },
       ],
     },
     {
       title: 'Legal',
       links: [
-        { name: 'Privacy', href: '/privacy-policy' },
-        { name: 'Terms', href: '/terms-of-service' },
+        { name: 'Privacy note', href: '/privacy-policy' },
+        { name: 'Responsible use', href: '/terms-of-service' },
       ],
     },
   ];
@@ -49,20 +47,17 @@ export default function Footer() {
           <div>
             <Logo iconSize={28} />
             <p className="mt-4 text-sm text-muted-foreground max-w-sm">
-              A practical platform to build, run, and monitor dependable web scraping at scale.
+              A portfolio/reference implementation of a visual, queue-backed browser automation system.
             </p>
-            <div className="mt-4 flex items-center gap-3">
-              <Link href="#" className="text-muted-foreground hover:text-foreground">
-                <Twitter className="h-4 w-4" />
-              </Link>
-              <Link href="#" className="text-muted-foreground hover:text-foreground">
-                <Linkedin className="h-4 w-4" />
-              </Link>
-              <Link href="#" className="text-muted-foreground hover:text-foreground">
+            <div className="mt-4">
+              <Link
+                href="https://github.com/abhisek343/AIScrape"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              >
                 <Github className="h-4 w-4" />
-              </Link>
-              <Link href="#" className="text-muted-foreground hover:text-foreground">
-                <Mail className="h-4 w-4" />
+                Source on GitHub
               </Link>
             </div>
           </div>
@@ -84,13 +79,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-10 border-t pt-6 text-xs text-muted-foreground">
-          <div className="flex items-center justify-between flex-col gap-3 md:flex-row">
-            <p>&copy; {currentYear} AIScrape. All rights reserved.</p>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span>Newsletter</span>
-              <Input type="email" placeholder="Your email" className="h-8 w-56" />
-            </div>
-          </div>
+          <p>&copy; {currentYear} AIScrape.</p>
         </div>
       </div>
     </motion.footer>

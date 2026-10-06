@@ -5,7 +5,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 const WorkflowAnimation = dynamic(() => import('@/components/landing/workflow-animation'), { ssr: false });
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Play, CheckCircle, Users, TrendingUp, Zap } from 'lucide-react';
+import { ArrowRight, Play, CheckCircle } from 'lucide-react';
 
 export default function Hero() {
   return (
@@ -297,7 +297,7 @@ export default function Hero() {
                 <Button size="lg" className="relative bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-8 py-4 text-base font-semibold shadow-2xl shadow-emerald-500/25 transition-all duration-300 rounded-xl border border-emerald-500/20 overflow-hidden">
                   {/* sheen */}
                   <span className="pointer-events-none absolute inset-0 rounded-xl [mask-image:linear-gradient(120deg,transparent,rgba(255,255,255,.35),transparent)] translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
-                  Start free trial
+                  Open workflow editor
                   <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-200" />
                 </Button>
               </motion.div>
@@ -309,18 +309,18 @@ export default function Hero() {
               >
                 <Button size="lg" variant="outline" className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 hover:border-emerald-300 dark:hover:border-emerald-700 px-10 py-5 text-lg font-semibold shadow-xl shadow-slate-200/50 dark:shadow-slate-800/50 transition-all duration-300 rounded-xl text-slate-700 dark:text-slate-300">
                   <Play className="mr-3 h-5 w-5" />
-                  Watch demo
+                  View workflow demo
                 </Button>
               </motion.div>
             </Link>
           </motion.div>
 
           {/* Animated Workflow Preview */}
-          <div className="mt-12">
+          <div id="demo" className="mt-12 scroll-mt-28">
             <WorkflowAnimation />
           </div>
 
-          {/* Enhanced Stats */}
+          {/* Verifiable runtime characteristics */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -328,28 +328,20 @@ export default function Hero() {
             className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto"
           >
             {[
-              { icon: Users, value: "2,500+", label: "Active users", delay: 0 },
-              { icon: TrendingUp, value: "99.9%", label: "Uptime SLA", delay: 0.1 },
-              { icon: Zap, value: "5min", label: "Setup time", delay: 0.2 }
-            ].map((stat, index) => (
+              { value: 'BullMQ', label: 'Queued execution', detail: 'Retries + dead-letter handling' },
+              { value: 'Chromium', label: 'Browser runtime', detail: 'Local Docker Compose path' },
+              { value: 'PostgreSQL', label: 'Durable run state', detail: 'Executions, phases, and logs' },
+            ].map((stat) => (
               <motion.div
                 key={stat.label}
-                initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.6, delay: 0.8 + stat.delay, ease: [0.25, 0.25, 0, 1] }}
-                whileHover={{ scale: 1.05, y: -5 }}
-                className="group text-center p-8 bg-gradient-to-br from-white/80 via-white/60 to-emerald-50/30 dark:from-slate-900/80 dark:via-slate-800/60 dark:to-emerald-950/20 backdrop-blur-md rounded-2xl border border-emerald-100/60 dark:border-emerald-900/40 shadow-2xl shadow-emerald-100/20 dark:shadow-emerald-900/10 hover:shadow-3xl hover:shadow-emerald-200/30 dark:hover:shadow-emerald-800/20 transition-all duration-500 relative overflow-hidden"
+                whileHover={{ scale: 1.03, y: -4 }}
+                className="group text-center p-8 bg-gradient-to-br from-white/80 via-white/60 to-emerald-50/30 dark:from-slate-900/80 dark:via-slate-800/60 dark:to-emerald-950/20 backdrop-blur-md rounded-2xl border border-emerald-100/60 dark:border-emerald-900/40 shadow-2xl shadow-emerald-100/20 dark:shadow-emerald-900/10 transition-all duration-300"
               >
-                {/* Gradient overlay on hover */}
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" />
-
-                <div className="relative z-10">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/60 dark:to-emerald-800/40 rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-emerald-200/30 dark:shadow-emerald-900/30">
-                    <stat.icon className="h-8 w-8 text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-300" />
-                  </div>
-                  <div className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-2 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-300">{stat.value}</div>
-                  <div className="text-slate-600 dark:text-slate-400 font-medium tracking-wide">{stat.label}</div>
+                <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white mb-2 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-300">
+                  {stat.value}
                 </div>
+                <div className="font-semibold text-slate-700 dark:text-slate-300">{stat.label}</div>
+                <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">{stat.detail}</div>
               </motion.div>
             ))}
           </motion.div>
