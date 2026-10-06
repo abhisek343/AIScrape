@@ -5,7 +5,6 @@ import nextDynamic from 'next/dynamic';
 const Header = nextDynamic(() => import('@/components/landing/header'));
 const Hero = nextDynamic(() => import('@/components/landing/hero'));
 // Below-the-fold sections are dynamically imported to reduce initial payload
-const BrandLogos = nextDynamic(() => import('@/components/landing/brand-logos'), { ssr: false });
 const Features = nextDynamic(() => import('@/components/landing/features'), { ssr: false });
 const UseCases = nextDynamic(() => import('@/components/landing/use-cases'), { ssr: false });
 const Showcase = nextDynamic(() => import('@/components/landing/showcase'), { ssr: false });
@@ -21,7 +20,6 @@ export default function LandingPage() {
       <Header />
       <main className="flex-grow">
         <Hero />
-        <BrandLogos />
         <Features />
         <Showcase />
         <UseCases />
