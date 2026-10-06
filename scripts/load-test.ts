@@ -1,4 +1,8 @@
-import { workflowQueue } from '../lib/queue/workflow.queue';
+import { Queue } from 'bullmq';
+
+import { redisConnection } from '../lib/queue/client';
+
+const BENCHMARK_QUEUE_NAME = 'aiscrape-queue-enqueue-benchmark';
 
 function parsePositiveInteger(value: string | undefined, fallback: number, name: string): number {
     if (!value) return fallback;
@@ -10,6 +14,7 @@ function parsePositiveInteger(value: string | undefined, fallback: number, name:
 }
 
 async function runQueueEnqueueBenchmark(concurrency: number, totalJobs: number) {
+    const queue = new Queue(BENCHMARK_QUEUE_NAME, { connection: redisConnection });
     const producerCount = Math.min(concurrency, totalJobs);
     let nextJob = 0;
     let enqueued = 0;
@@ -27,13 +32,9 @@ async function runQueueEnqueueBenchmark(concurrency: number, totalJobs: number) 
             const index = nextJob++;
             if (index >= totalJobs) return;
 
-            await workflowQueue.add('queue-enqueue-benchmark', {
-                workflowId: `benchmark-workflow-${index}`,
-                executionId: `benchmark-execution-${Date.now()}-${index}`,
-                benchmark: true,
-            }, {
-                removeOnComplete: true,
-                removeOnFail: true,
+            await queue.add('enqueue-benchmark', {
+                sequence: index,
+                createdAt: new Date().toISOString(),
             });
 
             enqueued++;
@@ -52,7 +53,10 @@ async function runQueueEnqueueBenchmark(concurrency: number, totalJobs: number) 
         console.log(`Elapsed: ${elapsedSeconds.toFixed(2)}s`);
         console.log(`Queue enqueue throughput: ${throughput.toFixed(2)} jobs/s`);
     } finally {
-        await workflowQueue.close();
+        // This queue is isolated from the application worker and contains only
+        // benchmark jobs, so cleaning it cannot affect workflow executions.
+        await queue.drain(true);
+        await queue.close();
     }
 }
 
