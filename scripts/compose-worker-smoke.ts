@@ -4,7 +4,7 @@ import {
   workflowDeadLetterQueue,
   workflowQueue,
 } from '../lib/queue/workflow.queue';
-import { redisConnection } from '../lib/queue/client';
+import { redisConnection, redisProducerConnection } from '../lib/queue/client';
 import {
   ExecutionPhaseStatus,
   WorkflowExecutionStatus,
@@ -56,6 +56,7 @@ function sleep(ms: number) {
 async function closeQueueConnections() {
   await workflowQueue.close().catch(() => undefined);
   await workflowDeadLetterQueue.close().catch(() => undefined);
+  await redisProducerConnection.quit().catch(() => undefined);
   await redisConnection.quit().catch(() => undefined);
   await prisma.$disconnect().catch(() => undefined);
 }
