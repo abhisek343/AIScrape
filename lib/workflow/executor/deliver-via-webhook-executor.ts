@@ -35,6 +35,10 @@ export async function DeliverViaWebhookExecutor(
 
     // Use the same DNS-pinned, redirect-validating transport as scraper HTTP
     // requests. This prevents hostname and redirect based SSRF bypasses.
+    const executionId = environment.getExecutionId();
+    const phaseId = environment.getPhaseId();
+    const idempotencyKey = executionId ? `aiscrape:${executionId}:${phaseId}` : `aiscrape:${phaseId}`;
+
     const response = await fetchPublicUrl(
       targetUrl,
       {
@@ -42,6 +46,8 @@ export async function DeliverViaWebhookExecutor(
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'AIScrape-Webhook/1.0',
+          'Idempotency-Key': idempotencyKey,
+          ...(executionId ? { 'X-AIScrape-Execution-Id': executionId } : {}),
         },
         body: bodyString,
         signal: abortController.signal,
