@@ -74,7 +74,6 @@ export async function HttpRequestExecutor(
     environment.log.info(`Making ${method} request to: ${url}`);
 
     const res = await fetchPublicUrl(url, init, { maxResponseBytes: MAX_RESPONSE_SIZE });
-    clearTimeout(timeoutId);
 
     // Check response size
     const contentLength = res.headers.get('content-length');
