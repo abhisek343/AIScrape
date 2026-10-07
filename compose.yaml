@@ -73,6 +73,8 @@ services:
       REDIS_CONNECTION_URL: redis://redis:6379
       NODE_ENV: production
       BROWSER_MODE: local
+      # Local demo container only. Production workers should keep Chromium sandboxing enabled.
+      CHROMIUM_DISABLE_SANDBOX: "true"
     depends_on:
       postgres:
         condition: service_healthy
