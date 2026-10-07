@@ -11,7 +11,13 @@ function log(event: string, fields: Record<string, unknown> = {}) {
     console.log(JSON.stringify({ service: 'aiscrape-worker', event, at: new Date().toISOString(), ...fields }));
 }
 
-log('worker.started', { queue: WORKFLOW_QUEUE_NAME });
+function getWorkerConcurrency(): number {
+    const parsed = Number(process.env.WORKER_CONCURRENCY ?? 2);
+    return Number.isSafeInteger(parsed) && parsed >= 1 && parsed <= 8 ? parsed : 2;
+}
+
+const workerConcurrency = getWorkerConcurrency();
+log('worker.started', { queue: WORKFLOW_QUEUE_NAME, concurrency: workerConcurrency });
 
 const worker = new Worker(
     WORKFLOW_QUEUE_NAME,
@@ -25,7 +31,7 @@ const worker = new Worker(
     },
     {
         connection: redisConnection,
-        concurrency: 5, // Process up to 5 workflows in parallel
+        concurrency: workerConcurrency
     }
 );
 
