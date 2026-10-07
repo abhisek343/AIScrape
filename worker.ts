@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq';
-import { redisConnection } from './lib/queue/client';
+import { redisConnection, redisProducerConnection } from './lib/queue/client';
 import { executeWorkflow } from './lib/workflow/execute-workflow';
 import {
     moveTerminalFailureToDeadLetter,
@@ -83,6 +83,7 @@ async function shutdown(signal: string) {
     log('worker.shutdown_started', { signal });
     try {
         await worker.close();
+        await redisProducerConnection.quit();
         await redisConnection.quit();
         log('worker.shutdown_completed', { signal });
         process.exit(0);
