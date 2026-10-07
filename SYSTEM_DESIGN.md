@@ -41,7 +41,7 @@ flowchart LR
 | Redis / BullMQ | durable job handoff, retries, duplicate-job protection, dead-letter queue |
 | Worker | loads persisted executions, runs phases, records results and failures |
 | Chromium / Puppeteer | browser navigation, interaction, rendering, and extraction |
-| Optional providers | Clerk authentication, Gemini inference, Stripe billing, remote browser mode |
+| Optional providers | Clerk authentication, Gemini inference, Stripe billing; remote browser mode is intentionally restricted to targets for which the current transport can preserve the outbound-network policy |
 
 PostgreSQL may be local (Compose) or managed in deployment. The architecture does not depend on a specific hosted PostgreSQL vendor.
 
