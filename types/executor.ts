@@ -9,6 +9,7 @@ export type Environment = {
 
   // Auth/context
   userId?: string;
+  executionId?: string;
 
   // Phases with nodeId/taskId as key
   phases: Record<
