@@ -99,9 +99,9 @@ export async function GET(req: Request) {
       },
     });
 
-    if (executionCount >= MAX_EXECUTIONS_PER_HOUR) {
+    if (executionCount >= MAX_CRON_EXECUTIONS_PER_HOUR) {
       return Response.json(
-        { error: `Rate limit exceeded: ${MAX_EXECUTIONS_PER_HOUR} executions per hour allowed` },
+        { error: `Rate limit exceeded: ${MAX_CRON_EXECUTIONS_PER_HOUR} scheduled executions per hour allowed` },
         { status: 429 }
       );
     }
