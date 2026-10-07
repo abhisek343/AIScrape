@@ -55,78 +55,102 @@ export async function executeWorkflow(executionId: string, nextRunAt?: Date) {
 
   const environment: Environment = { phases: {}, userId: execution.userId };
 
-  await initializeWorkflowExecution(execution.id, execution.workflowId, nextRunAt);
-  await initializePhaseStatuses(execution);
+  try {
+    await initializeWorkflowExecution(execution.id, execution.workflowId, nextRunAt);
+    await initializePhaseStatuses(execution);
 
-  let creditsConsumed = 0;
-  let executionFailed = false;
+    let creditsConsumed = 0;
+    let executionFailed = false;
 
-  // Group phases by number to execute them in parallel batches
-  const phasesByNumber: Record<number, ExecutionPhase[]> = {};
-  for (const phase of execution.phases) {
-    if (!phasesByNumber[phase.number]) {
-      phasesByNumber[phase.number] = [];
+    const phasesByNumber: Record<number, ExecutionPhase[]> = {};
+    for (const phase of execution.phases) {
+      if (!phasesByNumber[phase.number]) phasesByNumber[phase.number] = [];
+      phasesByNumber[phase.number].push(phase);
     }
-    phasesByNumber[phase.number].push(phase);
-  }
 
-  const sortedPhaseNumbers = Object.keys(phasesByNumber)
-    .map(Number)
-    .sort((a, b) => a - b);
+    const sortedPhaseNumbers = Object.keys(phasesByNumber)
+      .map(Number)
+      .sort((a, b) => a - b);
 
-  for (const phaseNumber of sortedPhaseNumbers) {
-    const phasesInGroup = phasesByNumber[phaseNumber];
-
-    // Validate that phases in the same group don't have dependencies on each other
-    // This ensures parallel execution is safe
-    const hasInterDependencies = phasesInGroup.some((phase: ExecutionPhase) => {
-      // Check if any edge points from one phase in this group to another
-      return edges.some(edge => 
-        edge.source === phase.id && 
-        phasesInGroup.some((p: ExecutionPhase) => p.id === edge.target)
+    for (const phaseNumber of sortedPhaseNumbers) {
+      const phasesInGroup = phasesByNumber[phaseNumber];
+      const nodeIds = new Set(
+        phasesInGroup
+          .map(getPhaseNodeId)
+          .filter((id): id is string => Boolean(id))
       );
-    });
 
-    if (hasInterDependencies) {
-      console.error(`Phase group ${phaseNumber} has inter-dependencies. Executing sequentially.`);
-      // Execute sequentially to respect dependencies
-      for (const phase of phasesInGroup) {
-        const result = await executeWorkflowPhase(phase, environment, edges, execution.userId);
-        creditsConsumed += result.creditsConsumed;
-        if (!result.success) {
+      const hasInterDependencies = edges.some(
+        (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)
+      );
+
+      if (hasInterDependencies) {
+        console.error(`Phase group ${phaseNumber} contains an intra-phase dependency; refusing an unsafe execution plan.`);
+        executionFailed = true;
+        break;
+      }
+
+      // Browser tasks share one mutable Page/Browser in the current execution
+      // environment. Serialize those phases until branch-local browser contexts
+      // are introduced; Promise.all on a shared Page is nondeterministic.
+      const mustSerialize = phasesInGroup.some(phaseUsesSharedBrowser);
+
+      if (mustSerialize) {
+        for (const phase of phasesInGroup) {
+          const result = await executeWorkflowPhase(phase, environment, edges, execution.userId);
+          creditsConsumed += result.creditsConsumed;
+          if (!result.success) {
+            executionFailed = true;
+            break;
+          }
+        }
+        if (executionFailed) break;
+      } else {
+        const phaseExecutions = await Promise.all(
+          phasesInGroup.map((phase) => executeWorkflowPhase(phase, environment, edges, execution.userId))
+        );
+
+        creditsConsumed += phaseExecutions.reduce((acc, result) => acc + result.creditsConsumed, 0);
+        if (phaseExecutions.some((result) => !result.success)) {
           executionFailed = true;
           break;
         }
       }
-    } else {
-      // Execute all phases in this group concurrently (safe because no inter-dependencies)
-      const phaseExecutions = await Promise.all(
-        phasesInGroup.map(phase => executeWorkflowPhase(phase, environment, edges, execution.userId))
-      );
-
-      // Sum up credits consumed
-      const creditsFromBatch = phaseExecutions.reduce((acc, result) => acc + result.creditsConsumed, 0);
-      creditsConsumed += creditsFromBatch;
-
-      // Check if any phases in the batch failed
-      const hasFailure = phaseExecutions.some(result => !result.success);
-      if (hasFailure) {
-        executionFailed = true;
-        break;
-      }
     }
-  }
 
-  await finalizeWorkflowExecution(executionId, execution.workflowId, executionFailed, creditsConsumed);
-  await cleanupEnvironment(environment);
+    await finalizeWorkflowExecution(executionId, execution.workflowId, executionFailed, creditsConsumed);
 
-  try {
-    revalidatePath('/workflow/runs');
-  } catch (error) {
-    // Queue workers run outside a Next request context. Persistence is already
-    // complete, so cache invalidation is best-effort in that process.
-    console.warn('Skipping Next cache revalidation outside request context:', error);
+    try {
+      revalidatePath('/workflow/runs');
+    } catch (error) {
+      console.warn('Skipping Next cache revalidation outside request context:', error);
+    }
+  } finally {
+    await cleanupEnvironment(environment);
   }
+}
+
+function getPhaseNodeId(phase: ExecutionPhase): string | null {
+  const parsed = safeJsonParse<{ id?: unknown }>(phase.node, {
+    maxSize: 1024 * 1024,
+    maxDepth: 10,
+  });
+  return parsed.success && typeof parsed.data?.id === 'string' ? parsed.data.id : null;
+}
+
+function phaseUsesSharedBrowser(phase: ExecutionPhase): boolean {
+  const parsed = safeJsonParse<{ data?: { type?: keyof typeof TaskRegistry } }>(phase.node, {
+    maxSize: 1024 * 1024,
+    maxDepth: 10,
+  });
+  if (!parsed.success || !parsed.data?.data?.type) return false;
+
+  const task = TaskRegistry[parsed.data.data.type];
+  if (!task) return false;
+
+  return [...task.inputs, ...task.outputs].some(
+    (param) => param.type === TaskParamType.BROWSER_INSTANCE
+  );
 }
 
 async function initializeWorkflowExecution(executionId: string, workflowId: string, nextRunAt?: Date) {
@@ -139,6 +163,7 @@ async function initializeWorkflowExecution(executionId: string, workflowId: stri
       where: { id: executionId },
       data: {
         startedAt: now,
+        completedAt: null,
         status: WorkflowExecutionStatus.RUNNING,
       },
     }),
@@ -341,7 +366,7 @@ function setupEnvironmentForPhase(node: AppNode, environment: Environment, edges
     if (input.type === TaskParamType.BROWSER_INSTANCE) continue;
 
     const inputValue = node.data.inputs[input.name];
-    if (inputValue) {
+    if (inputValue !== undefined && inputValue !== null && inputValue !== '') {
       environment.phases[node.id].inputs[input.name] = inputValue;
       continue;
     }
