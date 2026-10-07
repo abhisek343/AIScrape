@@ -5,120 +5,116 @@ export interface SafeJsonOptions {
 }
 
 const DEFAULT_OPTIONS: Required<SafeJsonOptions> = {
-  maxSize: 1024 * 1024, // 1MB
+  maxSize: 1024 * 1024,
   allowedTypes: ['object', 'array', 'string', 'number', 'boolean', 'null'],
-  maxDepth: 32
+  maxDepth: 32,
 };
 
-/**
- * Safely parse JSON with validation and size limits
- */
+function valueType(value: unknown): string {
+  if (Array.isArray(value)) return 'array';
+  if (value === null) return 'null';
+  return typeof value;
+}
+
+function validateParsedJson(
+  parsed: unknown,
+  allowedTypes: string[],
+  maxDepth: number,
+): string | null {
+  const stack: Array<{ value: unknown; depth: number }> = [{ value: parsed, depth: 1 }];
+
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    if (current.depth > maxDepth) {
+      return `JSON exceeds maximum depth of ${maxDepth}`;
+    }
+
+    const type = valueType(current.value);
+    if (!allowedTypes.includes(type)) {
+      return `Disallowed type found: ${type}`;
+    }
+
+    if (Array.isArray(current.value)) {
+      for (const child of current.value) {
+        stack.push({ value: child, depth: current.depth + 1 });
+      }
+      continue;
+    }
+
+    if (current.value !== null && typeof current.value === 'object') {
+      for (const [key, child] of Object.entries(current.value as Record<string, unknown>)) {
+        if (key.startsWith('__') || key === 'constructor' || key === 'prototype') {
+          return `Dangerous property name: ${key}`;
+        }
+        stack.push({ value: child, depth: current.depth + 1 });
+      }
+    }
+  }
+
+  return null;
+}
+
 export function safeJsonParse<T = any>(
-  jsonString: string, 
-  options: SafeJsonOptions = {}
+  jsonString: string,
+  options: SafeJsonOptions = {},
 ): { success: true; data: T } | { success: false; error: string } {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
   try {
-    // Check size limit
-    if (jsonString.length > opts.maxSize) {
+    if (Buffer.byteLength(jsonString, 'utf8') > opts.maxSize) {
       return {
         success: false,
-        error: `JSON string exceeds maximum size of ${opts.maxSize} bytes`
+        error: `JSON string exceeds maximum size of ${opts.maxSize} bytes`,
       };
     }
 
-    // Basic validation - check for potential prototype pollution
-    if (jsonString.includes('__proto__') || jsonString.includes('constructor') || jsonString.includes('prototype')) {
-      return {
-        success: false,
-        error: 'JSON contains potentially dangerous prototype pollution patterns'
-      };
+    const parsed = JSON.parse(jsonString);
+    const validationError = validateParsedJson(parsed, opts.allowedTypes, opts.maxDepth);
+    if (validationError) {
+      return { success: false, error: validationError };
     }
 
-    // Parse with reviver to validate structure and depth
-    let currentDepth = 0;
-    const maxDepth = opts.maxDepth;
-
-    const parsed = JSON.parse(jsonString, function(key, value) {
-      // Track depth
-      if (typeof value === 'object' && value !== null) {
-        currentDepth++;
-        if (currentDepth > maxDepth) {
-          throw new Error(`JSON exceeds maximum depth of ${maxDepth}`);
-        }
-      }
-
-      // Validate value types
-      const valueType = Array.isArray(value) ? 'array' : value === null ? 'null' : typeof value;
-      if (!opts.allowedTypes.includes(valueType)) {
-        throw new Error(`Disallowed type found: ${valueType}`);
-      }
-
-      // Additional validation for objects
-      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        // Check for dangerous property names
-        for (const prop in value) {
-          if (prop.startsWith('__') || prop === 'constructor' || prop === 'prototype') {
-            throw new Error(`Dangerous property name: ${prop}`);
-          }
-        }
-      }
-
-      return value;
-    });
-
-    return { success: true, data: parsed };
-  } catch (error: any) {
+    return { success: true, data: parsed as T };
+  } catch (error: unknown) {
     return {
       success: false,
-      error: `JSON parsing failed: ${error.message}`
+      error: `JSON parsing failed: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
 
-/**
- * Safely stringify JSON with circular reference handling
- */
 export function safeJsonStringify(
   value: any,
-  options: { maxSize?: number; space?: string | number } = {}
+  options: { maxSize?: number; space?: string | number } = {},
 ): { success: true; data: string } | { success: false; error: string } {
   const { maxSize = 1024 * 1024, space } = options;
 
   try {
-    // Handle circular references
     const seen = new WeakSet();
     const result = JSON.stringify(value, function(key, val) {
       if (typeof val === 'object' && val !== null) {
-        if (seen.has(val)) {
-          return '[Circular Reference]';
-        }
+        if (seen.has(val)) return '[Circular Reference]';
         seen.add(val);
       }
       return val;
     }, space);
 
-    // Check size limit
-    if (result.length > maxSize) {
+    if (Buffer.byteLength(result, 'utf8') > maxSize) {
       return {
         success: false,
-        error: `Stringified JSON exceeds maximum size of ${maxSize} bytes`
+        error: `Stringified JSON exceeds maximum size of ${maxSize} bytes`,
       };
     }
 
     return { success: true, data: result };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       success: false,
-      error: `JSON stringification failed: ${error.message}`
+      error: `JSON stringification failed: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
 
-/**
- * Validate JSON schema against expected structure
- */
 export function validateJsonSchema(
   data: any,
   schema: {
@@ -126,63 +122,47 @@ export function validateJsonSchema(
     required?: string[];
     properties?: Record<string, any>;
     items?: any;
-  }
+  },
 ): { valid: true } | { valid: false; error: string } {
   try {
-    // Type validation
     const actualType = Array.isArray(data) ? 'array' : typeof data;
     if (actualType !== schema.type) {
-      return {
-        valid: false,
-        error: `Expected type ${schema.type}, got ${actualType}`
-      };
+      return { valid: false, error: `Expected type ${schema.type}, got ${actualType}` };
     }
 
-    // Object validation
     if (schema.type === 'object' && schema.required) {
       for (const requiredProp of schema.required) {
         if (!(requiredProp in data)) {
-          return {
-            valid: false,
-            error: `Missing required property: ${requiredProp}`
-          };
+          return { valid: false, error: `Missing required property: ${requiredProp}` };
         }
       }
     }
 
-    // Property validation
     if (schema.type === 'object' && schema.properties) {
       for (const [prop, propSchema] of Object.entries(schema.properties)) {
         if (prop in data) {
           const validation = validateJsonSchema(data[prop], propSchema);
           if (!validation.valid) {
-            return {
-              valid: false,
-              error: `Property ${prop}: ${validation.error}`
-            };
+            return { valid: false, error: `Property ${prop}: ${validation.error}` };
           }
         }
       }
     }
 
-    // Array validation
     if (schema.type === 'array' && schema.items && Array.isArray(data)) {
       for (let i = 0; i < data.length; i++) {
         const validation = validateJsonSchema(data[i], schema.items);
         if (!validation.valid) {
-          return {
-            valid: false,
-            error: `Array item ${i}: ${validation.error}`
-          };
+          return { valid: false, error: `Array item ${i}: ${validation.error}` };
         }
       }
     }
 
     return { valid: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       valid: false,
-      error: `Schema validation failed: ${error.message}`
+      error: `Schema validation failed: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
