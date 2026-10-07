@@ -64,21 +64,12 @@ export async function DisplayDataExecutor(
       }
     }
 
-    // Create a nice display format
-    const displayHeader = `\n${'='.repeat(60)}\n${displayTitle.toUpperCase()}\n${'='.repeat(60)}`;
-    const displayFooter = `${'='.repeat(60)}\n`;
-    
-    const fullDisplay = `${displayHeader}\n${formattedData}\n${displayFooter}`;
-
-    // Log the formatted data for easy viewing
-    environment.log.info(fullDisplay);
-
-    // Also log data type and size info
     const dataType = isJson ? 'JSON' : 'Text';
-    const dataSize = dataToDisplay.length;
-    const formattedSize = formattedData.length;
-    
-    environment.log.info(`Data Summary: Type=${dataType}, Original Size=${dataSize} chars, Formatted Size=${formattedSize} chars`);
+    const dataSize = Buffer.byteLength(dataToDisplay, 'utf8');
+    const formattedSize = Buffer.byteLength(formattedData, 'utf8');
+    environment.log.info(
+      `Display prepared: Title=${displayTitle.slice(0, 120)}, Type=${dataType}, OriginalBytes=${dataSize}, FormattedBytes=${formattedSize}`
+    );
 
     // Store the formatted data as output for potential use by other nodes
     environment.setOutput('Displayed Data', formattedData);

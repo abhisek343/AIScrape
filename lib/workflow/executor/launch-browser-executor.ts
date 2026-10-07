@@ -12,7 +12,6 @@ import { redisConnection } from '@/lib/queue/client';
 // Security and resource management constants
 const BROWSER_TIMEOUT = 60000; // 60 seconds for browser operations
 const PAGE_LOAD_TIMEOUT = 30000; // 30 seconds for page load
-const MAX_MEMORY_MB = 512; // 512MB memory limit per browser
 
 
 async function setupSecurePage(page: Page, allowedHostname: string): Promise<void> {
@@ -127,35 +126,30 @@ export async function LaunchBrowserExecutor(
 
     // Launch or connect to browser with security settings
     if (process.env.BROWSER_MODE !== 'remote') {
-      // Launch locally in dev with security restrictions
-      browser = await Promise.race([
-        puppeteer.launch({
-          headless: true,
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--disable-gpu',
-            '--disable-extensions',
-            '--disable-default-apps',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-renderer-backgrounding',
-            '--disable-features=TranslateUI',
-            '--disable-ipc-flooding-protection',
-            `--memory-pressure-off`,
-            `--max_old_space_size=${MAX_MEMORY_MB}`,
-            ...(isIP(target.hostname) ? [] : [`--host-resolver-rules=MAP ${target.hostname} ${resolved.address}`]),
-          ],
-          timeout: BROWSER_TIMEOUT,
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Browser launch timeout')), BROWSER_TIMEOUT)
-        )
-      ]);
+      const disableSandbox = process.env.CHROMIUM_DISABLE_SANDBOX === 'true';
+      // Puppeteer already enforces the launch timeout. Avoid wrapping launch in
+      // Promise.race: a late-resolving launch would otherwise create an orphaned
+      // Chromium process after the timeout promise has rejected.
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          ...(disableSandbox ? ['--no-sandbox', '--disable-setuid-sandbox'] : []),
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-gpu',
+          '--disable-extensions',
+          '--disable-default-apps',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-features=TranslateUI',
+          '--disable-ipc-flooding-protection',
+          ...(isIP(target.hostname) ? [] : [`--host-resolver-rules=MAP ${target.hostname} ${resolved.address}`]),
+        ],
+        timeout: BROWSER_TIMEOUT,
+      });
       environment.log.info('Local browser launched successfully');
     } else {
       // Remote browser use is explicit: hosted deployments must opt in with
@@ -191,15 +185,10 @@ export async function LaunchBrowserExecutor(
     // Navigate with timeout and error handling
     environment.log.info(`Navigating to: ${websiteUrl}`);
 
-    await Promise.race([
-      page.goto(websiteUrl, {
-        waitUntil: 'domcontentloaded', // Don't wait for all resources
-        timeout: PAGE_LOAD_TIMEOUT
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Page load timeout')), PAGE_LOAD_TIMEOUT)
-      )
-    ]);
+    await page.goto(websiteUrl, {
+      waitUntil: 'domcontentloaded',
+      timeout,
+    });
 
     // Verify page loaded successfully
     const currentUrl = page.url();

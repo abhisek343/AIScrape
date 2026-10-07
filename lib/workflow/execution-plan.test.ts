@@ -124,4 +124,38 @@ describe('flowToExecutionPlan', () => {
         expect(phase2Nodes).toHaveLength(2);
         expect(phase2Nodes.map(n => n.id).sort()).toEqual(['2', '3']);
     });
+
+    it('does not schedule an optional connected input before its source runs', () => {
+        const nodes: AppNode[] = [
+            {
+                id: '1',
+                position: { x: 0, y: 0 },
+                data: { type: 'LAUNCH_BROWSER' as TaskType, inputs: { url: 'foo' } }
+            },
+            {
+                id: '2',
+                position: { x: 100, y: 0 },
+                data: { type: 'PARALLEL_TASK' as TaskType, inputs: {} }
+            },
+            {
+                id: '3',
+                position: { x: 200, y: 0 },
+                data: { type: 'PARALLEL_TASK' as TaskType, inputs: {} }
+            }
+        ];
+
+        const edges: Edge[] = [
+            { id: 'e1-2', source: '1', target: '2', targetHandle: 'trigger' },
+            { id: 'e2-3', source: '2', target: '3', targetHandle: 'trigger' }
+        ];
+
+        const { executionPlan, error } = flowToExecutionPlan(nodes, edges);
+
+        expect(error).toBeUndefined();
+        expect(executionPlan?.map((phase) => phase.nodes.map((node) => node.id))).toEqual([
+            ['1'],
+            ['2'],
+            ['3'],
+        ]);
+    });
 });

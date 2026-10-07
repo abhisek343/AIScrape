@@ -206,11 +206,12 @@ function getInvalidInputs(node: AppNode, taskInputs: WorkflowTask['inputs'], edg
       if (planned.has(incomingEdgeForInput.source)) {
         // Source node is already planned, so this input is considered provided by a planned task
         continue;
-      } else if (inputDef.required) {
-        // Source node is not yet planned, but this input is required
+      } else {
+        // A connected input is a dependency even when the input itself is
+        // optional. Do not schedule the consumer in the same phase as a source
+        // that has not run yet.
         invalidInputsList.push(inputDef.name);
       }
-      // If not required and source not planned, it's okay for now, might be planned in a later phase
     } else if (inputDef.required) {
       // No direct value, no incoming edge, and it's required
       invalidInputsList.push(inputDef.name);

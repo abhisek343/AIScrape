@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { GoogleGenAI, HarmBlockThreshold, HarmCategory } from '@google/genai';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { TaskParam } from '@/types/task';
@@ -14,13 +14,26 @@ import { TaskRegistry } from '@/lib/workflow/task/registry';
 import { AiAutomationSpec, buildDefinitionFromAiSpec } from '@/lib/workflow/ai-automation';
 import { flowToExecutionPlan, FlowToExecutionPlanValidationError } from '@/lib/workflow/execution-plan';
 import { AppNode } from '@/types/appnode';
+import { GENERAL_CHAT_SESSION_ID } from '@/lib/chat/constants';
+import { reserveChatRequest } from '@/lib/chat/rate-limit';
 
 // Initialize Google Generative AI
 if (!process.env.GOOGLE_API_KEY) {
   console.error("FATAL: GOOGLE_API_KEY is not set in .env. Chatbot API cannot initialize.");
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || "");
+const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY || "" });
+const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || 'gemini-3.8-flash';
+const MAX_CHAT_MESSAGES = 40;
+const MAX_CHAT_MESSAGE_CHARS = 12_000;
+const MAX_WORKFLOW_CONTEXT_CHARS = 512_000;
+const SENSITIVE_WORKFLOW_INPUT = /(credential|authorization|header|cookie|token|secret|password|api.?key|local.?storage)/i;
+
+function summarizeWorkflowInput(name: string, value: unknown): string {
+  if (SENSITIVE_WORKFLOW_INPUT.test(name)) return `${name}: [configured]`;
+  const rendered = String(value);
+  return `${name}: ${rendered.length > 160 ? `${rendered.slice(0, 160)}…` : rendered}`;
+}
 
 // Helpers for automation and awaiting runs
 async function wait(ms: number) {
@@ -153,12 +166,29 @@ export async function POST(req: NextRequest) {
   try {
     const { message, workflowId: clientWorkflowId, currentDefinition } = await req.json();
 
-    if (!message) {
+    if (!message || typeof message !== 'string' || !message.trim()) {
       return new NextResponse('Message is required', { status: 400 });
     }
+    if (message.length > MAX_CHAT_MESSAGE_CHARS) {
+      return new NextResponse('Message is too large', { status: 413 });
+    }
+    if (currentDefinition !== undefined && typeof currentDefinition !== 'string') {
+      return new NextResponse('Invalid workflow context', { status: 400 });
+    }
+    if (currentDefinition && currentDefinition.length > MAX_WORKFLOW_CONTEXT_CHARS) {
+      return new NextResponse('Workflow context is too large', { status: 413 });
+    }
 
-    const GENERAL_CHAT_PLACEHOLDER = '___GENERAL_CHAT_SESSION___';
-    const effectiveWorkflowId = clientWorkflowId || GENERAL_CHAT_PLACEHOLDER;
+    try {
+      if (!await reserveChatRequest(userId)) {
+        return new NextResponse('Too many chatbot requests. Try again shortly.', { status: 429 });
+      }
+    } catch (error) {
+      console.error('Chatbot rate limiter unavailable:', error);
+      return new NextResponse('Chatbot temporarily unavailable', { status: 503 });
+    }
+
+    const effectiveWorkflowId = clientWorkflowId || GENERAL_CHAT_SESSION_ID;
 
     // Retrieve user's chat session history
     let chatSession = await prisma.chatSession.findUnique({
@@ -180,6 +210,9 @@ export async function POST(req: NextRequest) {
     }
 
     messages.push({ role: 'user', parts: [{ text: message }] });
+    if (messages.length > MAX_CHAT_MESSAGES) {
+      messages = messages.slice(-MAX_CHAT_MESSAGES);
+    }
 
     let systemPrompt = `
       You are an **Expert Automation Architect** for AIScrape.
@@ -234,7 +267,7 @@ export async function POST(req: NextRequest) {
     const availableNodesDescription = buildAvailableNodesDescription();
 
     let workflowContextHeader = "";
-    if (clientWorkflowId && clientWorkflowId !== GENERAL_CHAT_PLACEHOLDER) {
+    if (clientWorkflowId && clientWorkflowId !== GENERAL_CHAT_SESSION_ID) {
       const currentWorkflow = await prisma.workflow.findUnique({
         where: { id: clientWorkflowId, userId: userId },
         select: { name: true, description: true, definition: true }
@@ -252,7 +285,7 @@ export async function POST(req: NextRequest) {
               const reg = nodeType ? TaskRegistry[nodeType as keyof typeof TaskRegistry] : undefined;
               const label = reg?.label || nodeType || 'Unknown';
               const inputs = node?.data?.inputs || {};
-              const inputPairs = Object.entries(inputs).map(([k, v]) => `${k}: ${String(v)}`);
+              const inputPairs = Object.entries(inputs).map(([k, v]) => summarizeWorkflowInput(k, v));
               const desc = nodeType && DetailedDescriptions[nodeType] ? DetailedDescriptions[nodeType] : '';
               const line = inputPairs.length > 0
                 ? `${label} (${nodeType}). ${desc} Inputs: ${inputPairs.join(', ')}.`
@@ -290,37 +323,27 @@ Maintain a helpful, safe, and project-focused conversation.
 
     const finalSystemPrompt = workflowContextHeader + systemPrompt;
 
-    // Initialize Gemini model with safety settings
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-pro',
-      safetySettings: [
-        {
-          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        },
-      ],
+    const boundedHistory = messages.slice(0, -1)
+      .map((entry) => `${entry.role}: ${entry.parts.map((part) => part.text).join(' ')}`)
+      .join('\n')
+      .slice(-48_000);
+
+    const response = await genAI.models.generateContent({
+      model: CHAT_MODEL,
+      contents: `${boundedHistory ? `Conversation history:\n${boundedHistory}\n\n` : ''}User: ${message}`,
+      config: {
+        systemInstruction: finalSystemPrompt,
+        maxOutputTokens: 2048,
+        safetySettings: [
+          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+        ],
+      },
     });
 
-    // Send to model
-    const chat = model.startChat({
-      history: messages.slice(0, -1),
-    });
-
-    const result = await chat.sendMessage(finalSystemPrompt + '\n\nUser: ' + message);
-    const response = result.response;
-    let text = response.text();
+    let text = response.text || '';
 
     // Enhanced detection: Check for JSON block
     const jsonBlock = extractFirstJsonBlock(text);

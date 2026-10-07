@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
+import { GENERAL_CHAT_SESSION_ID } from '@/lib/chat/constants';
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -44,7 +45,7 @@ export async function DELETE(req: NextRequest) {
       const generalSession = await prisma.chatSession.findFirst({
         where: {
           userId: userId,
-          workflowId: null,
+          workflowId: GENERAL_CHAT_SESSION_ID,
         },
       });
       if (generalSession) {

@@ -53,80 +53,108 @@ export async function executeWorkflow(executionId: string, nextRunAt?: Date) {
 
   const edges = definitionParseResult.data.edges as Edge[];
 
-  const environment: Environment = { phases: {}, userId: execution.userId };
+  const environment: Environment = { phases: {}, userId: execution.userId, executionId };
 
-  await initializeWorkflowExecution(execution.id, execution.workflowId, nextRunAt);
-  await initializePhaseStatuses(execution);
+  try {
+    await initializeWorkflowExecution(execution.id, execution.workflowId, nextRunAt);
+    await initializePhaseStatuses(execution);
 
-  let creditsConsumed = 0;
-  let executionFailed = false;
+    let creditsConsumed = 0;
+    let executionFailed = false;
 
-  // Group phases by number to execute them in parallel batches
-  const phasesByNumber: Record<number, ExecutionPhase[]> = {};
-  for (const phase of execution.phases) {
-    if (!phasesByNumber[phase.number]) {
-      phasesByNumber[phase.number] = [];
+    const phasesByNumber: Record<number, ExecutionPhase[]> = {};
+    for (const phase of execution.phases) {
+      if (!phasesByNumber[phase.number]) phasesByNumber[phase.number] = [];
+      phasesByNumber[phase.number].push(phase);
     }
-    phasesByNumber[phase.number].push(phase);
-  }
 
-  const sortedPhaseNumbers = Object.keys(phasesByNumber)
-    .map(Number)
-    .sort((a, b) => a - b);
+    const sortedPhaseNumbers = Object.keys(phasesByNumber)
+      .map(Number)
+      .sort((a, b) => a - b);
 
-  for (const phaseNumber of sortedPhaseNumbers) {
-    const phasesInGroup = phasesByNumber[phaseNumber];
-
-    // Validate that phases in the same group don't have dependencies on each other
-    // This ensures parallel execution is safe
-    const hasInterDependencies = phasesInGroup.some((phase: ExecutionPhase) => {
-      // Check if any edge points from one phase in this group to another
-      return edges.some(edge => 
-        edge.source === phase.id && 
-        phasesInGroup.some((p: ExecutionPhase) => p.id === edge.target)
+    for (const phaseNumber of sortedPhaseNumbers) {
+      const phasesInGroup = phasesByNumber[phaseNumber];
+      const nodeIds = new Set(
+        phasesInGroup
+          .map(getPhaseNodeId)
+          .filter((id): id is string => Boolean(id))
       );
-    });
 
-    if (hasInterDependencies) {
-      console.error(`Phase group ${phaseNumber} has inter-dependencies. Executing sequentially.`);
-      // Execute sequentially to respect dependencies
-      for (const phase of phasesInGroup) {
-        const result = await executeWorkflowPhase(phase, environment, edges, execution.userId);
-        creditsConsumed += result.creditsConsumed;
-        if (!result.success) {
+      const hasInterDependencies = edges.some(
+        (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)
+      );
+
+      if (hasInterDependencies) {
+        console.error(`Phase group ${phaseNumber} contains an intra-phase dependency; refusing an unsafe execution plan.`);
+        executionFailed = true;
+        break;
+      }
+
+      // Browser tasks share one mutable Page/Browser in the current execution
+      // environment. Serialize those phases until branch-local browser contexts
+      // are introduced; Promise.all on a shared Page is nondeterministic.
+      const mustSerialize = phasesInGroup.some(phaseUsesSharedBrowser);
+
+      if (mustSerialize) {
+        for (const phase of phasesInGroup) {
+          const result = await executeWorkflowPhase(phase, environment, edges, execution.userId);
+          creditsConsumed += result.creditsConsumed;
+          if (!result.success) {
+            executionFailed = true;
+            break;
+          }
+        }
+        if (executionFailed) break;
+      } else {
+        const phaseExecutions = await Promise.all(
+          phasesInGroup.map((phase) => executeWorkflowPhase(phase, environment, edges, execution.userId))
+        );
+
+        creditsConsumed += phaseExecutions.reduce((acc, result) => acc + result.creditsConsumed, 0);
+        if (phaseExecutions.some((result) => !result.success)) {
           executionFailed = true;
           break;
         }
       }
-    } else {
-      // Execute all phases in this group concurrently (safe because no inter-dependencies)
-      const phaseExecutions = await Promise.all(
-        phasesInGroup.map(phase => executeWorkflowPhase(phase, environment, edges, execution.userId))
-      );
-
-      // Sum up credits consumed
-      const creditsFromBatch = phaseExecutions.reduce((acc, result) => acc + result.creditsConsumed, 0);
-      creditsConsumed += creditsFromBatch;
-
-      // Check if any phases in the batch failed
-      const hasFailure = phaseExecutions.some(result => !result.success);
-      if (hasFailure) {
-        executionFailed = true;
-        break;
-      }
     }
-  }
 
-  await finalizeWorkflowExecution(executionId, execution.workflowId, executionFailed, creditsConsumed);
-  await cleanupEnvironment(environment);
+    await finalizeWorkflowExecution(executionId, execution.workflowId, executionFailed, creditsConsumed);
 
-  try {
-    revalidatePath('/workflow/runs');
-  } catch (error) {
-    // Queue workers run outside a Next request context. Persistence is already
-    // complete, so cache invalidation is best-effort in that process.
-    console.warn('Skipping Next cache revalidation outside request context:', error);
+    if (executionFailed) {
+      throw new Error(`Workflow execution ${executionId} failed`);
+    }
+
+    try {
+      revalidatePath('/workflow/runs');
+    } catch (error) {
+      console.warn('Skipping Next cache revalidation outside request context:', error);
+    }
+  } finally {
+    await cleanupEnvironment(environment);
   }
+}
+
+function getPhaseNodeId(phase: ExecutionPhase): string | null {
+  const parsed = safeJsonParse<{ id?: unknown }>(phase.node, {
+    maxSize: 1024 * 1024,
+    maxDepth: 10,
+  });
+  return parsed.success && typeof parsed.data?.id === 'string' ? parsed.data.id : null;
+}
+
+function phaseUsesSharedBrowser(phase: ExecutionPhase): boolean {
+  const parsed = safeJsonParse<{ data?: { type?: keyof typeof TaskRegistry } }>(phase.node, {
+    maxSize: 1024 * 1024,
+    maxDepth: 10,
+  });
+  if (!parsed.success || !parsed.data?.data?.type) return false;
+
+  const task = TaskRegistry[parsed.data.data.type];
+  if (!task) return false;
+
+  return [...task.inputs, ...task.outputs].some(
+    (param) => param.type === TaskParamType.BROWSER_INSTANCE
+  );
 }
 
 async function initializeWorkflowExecution(executionId: string, workflowId: string, nextRunAt?: Date) {
@@ -139,6 +167,7 @@ async function initializeWorkflowExecution(executionId: string, workflowId: stri
       where: { id: executionId },
       data: {
         startedAt: now,
+        completedAt: null,
         status: WorkflowExecutionStatus.RUNNING,
       },
     }),
@@ -246,6 +275,22 @@ async function executeWorkflowPhase(phase: ExecutionPhase, environment: Environm
 
   const node = nodeParseResult.data as AppNode;
 
+  if (phase.status === ExecutionPhaseStatus.COMPLETED) {
+    const previousOutputs = phase.outputs
+      ? safeJsonParse<Record<string, string>>(phase.outputs, { maxSize: 10 * 1024 * 1024, maxDepth: 20 })
+      : { success: true as const, data: {} };
+
+    environment.phases[node.id] = {
+      inputs: {},
+      outputs: previousOutputs.success ? previousOutputs.data : {},
+    };
+
+    return {
+      success: true,
+      creditsConsumed: phase.creditsConsumed ?? 0,
+    };
+  }
+
   setupEnvironmentForPhase(node, environment, edges);
 
   // Update phase status
@@ -254,7 +299,7 @@ async function executeWorkflowPhase(phase: ExecutionPhase, environment: Environm
     data: {
       status: ExecutionPhaseStatus.RUNNING,
       startedAt,
-      inputs: JSON.stringify(environment.phases[node.id].inputs),
+      inputs: JSON.stringify(redactInputsForPersistence(environment.phases[node.id].inputs)),
     },
   });
 
@@ -268,7 +313,7 @@ async function executeWorkflowPhase(phase: ExecutionPhase, environment: Environm
   const creditsRequired = taskDefinition.credits ?? 0;
 
   // Free nodes do not need a balance record or a database charge.
-  let success = creditsRequired === 0 || await decrementCredits(userId, creditsRequired, logCollector);
+  let success = creditsRequired === 0 || await chargePhaseCredits(phase.id, userId, creditsRequired, logCollector);
   const creditsConsumed = success ? creditsRequired : 0;
 
   if (success) {
@@ -323,7 +368,7 @@ async function executePhase(
     return false;
   }
 
-  const executionEnvironment: ExecutionEnvironment<any> = createExecutionEnvironment(node, environment, logCollector);
+  const executionEnvironment: ExecutionEnvironment<any> = createExecutionEnvironment(node, environment, logCollector, phase.id);
 
   return await runFn(executionEnvironment);
 }
@@ -341,7 +386,7 @@ function setupEnvironmentForPhase(node: AppNode, environment: Environment, edges
     if (input.type === TaskParamType.BROWSER_INSTANCE) continue;
 
     const inputValue = node.data.inputs[input.name];
-    if (inputValue) {
+    if (inputValue !== undefined && inputValue !== null && inputValue !== '') {
       environment.phases[node.id].inputs[input.name] = inputValue;
       continue;
     }
@@ -372,10 +417,22 @@ function setupEnvironmentForPhase(node: AppNode, environment: Environment, edges
   }
 }
 
+const SENSITIVE_INPUT_NAME = /(credential|authorization|headers?|cookies?|token|secret|password|api.?key|local.?storage)/i;
+
+function redactInputsForPersistence(inputs: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(inputs).map(([name, value]) => [
+      name,
+      SENSITIVE_INPUT_NAME.test(name) ? '[redacted]' : value,
+    ]),
+  );
+}
+
 function createExecutionEnvironment(
   node: AppNode,
   environment: Environment,
-  logCollector: LogCollector
+  logCollector: LogCollector,
+  phaseId: string,
 ): ExecutionEnvironment<any> {
   return {
     getInput: (name: string) => environment.phases[node.id]?.inputs[name],
@@ -390,69 +447,75 @@ function createExecutionEnvironment(
     setPage: (page: Page) => (environment.page = page),
 
     getUserId: () => environment.userId,
+    getExecutionId: () => environment.executionId,
+    getPhaseId: () => phaseId,
 
     log: logCollector,
   };
 }
 
-async function decrementCredits(userId: string, amount: number, logCollector: LogCollector) {
-  const maxRetries = 3;
-  let retryCount = 0;
-
-  // Validate inputs
-  if (!userId || typeof userId !== 'string') {
-    logCollector.error('Invalid userId provided');
-    return false;
-  }
-  if (!amount || amount <= 0 || !Number.isFinite(amount)) {
-    logCollector.error('Invalid amount provided');
+async function chargePhaseCredits(
+  phaseId: string,
+  userId: string,
+  amount: number,
+  logCollector: LogCollector,
+) {
+  if (!phaseId || !userId || !Number.isFinite(amount) || amount <= 0) {
+    logCollector.error('Invalid credit charge request');
     return false;
   }
 
-  while (retryCount < maxRetries) {
-    try {
-      // Use raw query with proper locking for true atomicity
-      // This prevents race conditions where multiple concurrent executions
-      // could pass the gte check before decrementing
-      const result = await prisma.$queryRaw`
+  try {
+    // Lock the phase row for this statement. If a stalled/retried worker races
+    // the same phase, the second statement observes the first charge and does
+    // not debit the user again.
+    const rows = await prisma.$queryRaw<Array<{ success: boolean; credits: number | null }>>`
+      WITH phase AS MATERIALIZED (
+        SELECT "creditsConsumed"
+        FROM "ExecutionPhase"
+        WHERE id = ${phaseId}
+        FOR UPDATE
+      ),
+      charge AS (
         UPDATE "UserBalance"
         SET credits = credits - ${amount}
-        WHERE "userId" = ${userId} AND credits >= ${amount}
+        WHERE "userId" = ${userId}
+          AND credits >= ${amount}
+          AND COALESCE((SELECT "creditsConsumed" FROM phase), 0) = 0
         RETURNING credits
-      `;
+      ),
+      mark AS (
+        UPDATE "ExecutionPhase"
+        SET "creditsConsumed" = ${amount}
+        WHERE id = ${phaseId}
+          AND EXISTS (SELECT 1 FROM charge)
+        RETURNING "creditsConsumed"
+      )
+      SELECT
+        CASE
+          WHEN COALESCE((SELECT "creditsConsumed" FROM phase), 0) = ${amount} THEN TRUE
+          WHEN EXISTS (SELECT 1 FROM mark) THEN TRUE
+          ELSE FALSE
+        END AS success,
+        COALESCE(
+          (SELECT credits FROM charge),
+          (SELECT credits FROM "UserBalance" WHERE "userId" = ${userId})
+        ) AS credits
+    `;
 
-      if (!result || (result as any[]).length === 0) {
-        logCollector.error('Insufficient balance');
-        return false;
-      }
-
-      const remainingCredits = (result as any[])[0].credits;
-      logCollector.info(`Credits decremented successfully. Remaining: ${remainingCredits}`);
-      return true;
-
-    } catch (error: any) {
-      retryCount++;
-
-      // Log detailed error for debugging
-      console.error(`Credit decrement attempt ${retryCount} failed:`, {
-        userId,
-        amount,
-        error: error.message,
-        code: error.code
-      });
-
-      if (retryCount >= maxRetries) {
-        logCollector.error(`Cannot decrement credits after ${maxRetries} attempts: ${error.message}`);
-        return false;
-      }
-
-      // Wait before retry (exponential backoff with jitter)
-      const delay = Math.pow(2, retryCount) * 100 + Math.random() * 100;
-      await new Promise(resolve => setTimeout(resolve, delay));
+    const result = rows[0];
+    if (!result?.success) {
+      logCollector.error('Insufficient balance');
+      return false;
     }
-  }
 
-  return false;
+    logCollector.info(`Credit reservation confirmed. Remaining: ${result.credits ?? 'unchanged'}`);
+    return true;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    logCollector.error(`Cannot reserve credits: ${message}`);
+    return false;
+  }
 }
 
 async function cleanupEnvironment(environment: Environment) {

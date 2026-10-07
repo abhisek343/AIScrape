@@ -62,6 +62,15 @@ export async function HttpRequestExecutor(
       
       init.headers = headersParseResult.data;
     }
+    const headers = new Headers(init.headers);
+    if (['POST', 'PUT', 'PATCH'].includes(method) && !headers.has('Idempotency-Key')) {
+      headers.set('Idempotency-Key', `aiscrape:${environment.getExecutionId() ?? 'execution'}:${environment.getPhaseId()}`);
+    }
+    if (environment.getExecutionId() && !headers.has('X-AIScrape-Execution-Id')) {
+      headers.set('X-AIScrape-Execution-Id', environment.getExecutionId()!);
+    }
+    init.headers = headers;
+
     if (body && method !== 'GET' && method !== 'HEAD') {
       // Validate body size
       if (body.length > 10 * 1024 * 1024) { // 10MB limit for request body
@@ -74,7 +83,6 @@ export async function HttpRequestExecutor(
     environment.log.info(`Making ${method} request to: ${url}`);
 
     const res = await fetchPublicUrl(url, init, { maxResponseBytes: MAX_RESPONSE_SIZE });
-    clearTimeout(timeoutId);
 
     // Check response size
     const contentLength = res.headers.get('content-length');
