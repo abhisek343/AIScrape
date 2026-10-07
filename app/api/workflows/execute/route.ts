@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 
 // Rate limiting: Track recent requests per workflow
 // Rate limiting settings
-const MAX_EXECUTIONS_PER_HOUR = 60;
+const MAX_CRON_EXECUTIONS_PER_HOUR = 120;
 
 function isValidSecret(secret: string) {
   const API_SECRET = process.env.API_SECRET;
