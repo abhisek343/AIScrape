@@ -76,6 +76,7 @@ export async function GET(req: Request) {
         userId: true,
         status: true,
         cron: true,
+        nextRunAt: true,
         executionPlan: true,
         definition: true,
         creditsCost: true
@@ -144,49 +145,83 @@ export async function GET(req: Request) {
     const cron = parser.parseExpression(workflow.cron, { utc: true });
     const nextRun = cron.next().toDate();
 
-    console.log(`Executing workflow ${workflowId} for user ${workflow.userId}, next run: ${nextRun}`);
+    const dueAt = workflow.nextRunAt;
+    const now = new Date();
+    if (!dueAt || dueAt > now) {
+      return Response.json({
+        success: false,
+        skipped: true,
+        reason: 'Workflow is not due',
+      }, { status: 200 });
+    }
 
-    // Create execution record
-    const execution = await prisma.workflowExecution.create({
-      data: {
-        workflowId,
-        userId: workflow.userId,
-        definition: workflow.definition,
-        status: WorkflowExecutionStatus.PENDING,
-        // Note: startedAt is intentionally left null until actual execution begins
-        trigger: WorkflowExecutionTrigger.CRON,
-        phases: {
-          create: executionPlan.flatMap((phase) => {
-            return phase.nodes.flatMap((node) => {
-              return {
+    console.log(`Claiming scheduled workflow ${workflowId} for user ${workflow.userId}, next run: ${nextRun}`);
+
+    // Atomically claim this due occurrence. Concurrent scheduler polls may both
+    // observe a due workflow, but only one can advance the exact nextRunAt value.
+    const claim = await prisma.workflow.updateMany({
+      where: {
+        id: workflowId,
+        status: WorkflowStatus.PUBLISHED,
+        nextRunAt: dueAt,
+      },
+      data: { nextRunAt: nextRun },
+    });
+
+    if (claim.count !== 1) {
+      return Response.json({
+        success: false,
+        skipped: true,
+        reason: 'Workflow occurrence already claimed',
+      }, { status: 200 });
+    }
+
+    let execution;
+    try {
+      execution = await prisma.workflowExecution.create({
+        data: {
+          workflowId,
+          userId: workflow.userId,
+          definition: workflow.definition,
+          status: WorkflowExecutionStatus.PENDING,
+          trigger: WorkflowExecutionTrigger.CRON,
+          phases: {
+            create: executionPlan.flatMap((phase) =>
+              phase.nodes.map((node) => ({
                 userId: workflow.userId,
-                status: ExecutionPhaseStatus.PENDING, // Directly set to PENDING, skipping CREATED
+                status: ExecutionPhaseStatus.PENDING,
                 number: phase.phase,
                 node: JSON.stringify(node),
                 name: TaskRegistry[node.data.type].label,
-              };
-            });
-          }),
+              }))
+            ),
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      await prisma.workflow.updateMany({
+        where: { id: workflowId, nextRunAt: nextRun },
+        data: { nextRunAt: dueAt },
+      });
+      throw error;
+    }
 
-    // The web request only submits the job; the worker owns browser execution.
     try {
       await submitWorkflowToQueue(workflowId, execution.id);
     } catch (error) {
-      await prisma.workflowExecution.update({
-        where: { id: execution.id },
-        data: { status: WorkflowExecutionStatus.FAILED, completedAt: new Date() },
-      });
+      await Promise.all([
+        prisma.workflowExecution.update({
+          where: { id: execution.id },
+          data: { status: WorkflowExecutionStatus.FAILED, completedAt: new Date() },
+        }),
+        prisma.workflow.updateMany({
+          where: { id: workflowId, nextRunAt: nextRun },
+          data: { nextRunAt: dueAt },
+        }),
+      ]);
       console.error('Cannot enqueue scheduled workflow', { workflowId, executionId: execution.id, error });
       return Response.json({ error: 'Queue submission failed', executionId: execution.id }, { status: 503 });
     }
-
-    await prisma.workflow.update({
-      where: { id: workflowId },
-      data: { nextRunAt: nextRun },
-    });
 
     return Response.json({
       success: true,
