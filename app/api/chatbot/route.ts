@@ -26,6 +26,14 @@ const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY || "" });
 const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || 'gemini-3.8-flash';
 const MAX_CHAT_MESSAGES = 40;
 const MAX_CHAT_MESSAGE_CHARS = 12_000;
+const MAX_WORKFLOW_CONTEXT_CHARS = 512_000;
+const SENSITIVE_WORKFLOW_INPUT = /(credential|authorization|header|cookie|token|secret|password|api.?key|local.?storage)/i;
+
+function summarizeWorkflowInput(name: string, value: unknown): string {
+  if (SENSITIVE_WORKFLOW_INPUT.test(name)) return `${name}: [configured]`;
+  const rendered = String(value);
+  return `${name}: ${rendered.length > 160 ? `${rendered.slice(0, 160)}…` : rendered}`;
+}
 
 // Helpers for automation and awaiting runs
 async function wait(ms: number) {
@@ -164,6 +172,12 @@ export async function POST(req: NextRequest) {
     if (message.length > MAX_CHAT_MESSAGE_CHARS) {
       return new NextResponse('Message is too large', { status: 413 });
     }
+    if (currentDefinition !== undefined && typeof currentDefinition !== 'string') {
+      return new NextResponse('Invalid workflow context', { status: 400 });
+    }
+    if (currentDefinition && currentDefinition.length > MAX_WORKFLOW_CONTEXT_CHARS) {
+      return new NextResponse('Workflow context is too large', { status: 413 });
+    }
 
     try {
       if (!await reserveChatRequest(userId)) {
@@ -271,7 +285,7 @@ export async function POST(req: NextRequest) {
               const reg = nodeType ? TaskRegistry[nodeType as keyof typeof TaskRegistry] : undefined;
               const label = reg?.label || nodeType || 'Unknown';
               const inputs = node?.data?.inputs || {};
-              const inputPairs = Object.entries(inputs).map(([k, v]) => `${k}: ${String(v)}`);
+              const inputPairs = Object.entries(inputs).map(([k, v]) => summarizeWorkflowInput(k, v));
               const desc = nodeType && DetailedDescriptions[nodeType] ? DetailedDescriptions[nodeType] : '';
               const line = inputPairs.length > 0
                 ? `${label} (${nodeType}). ${desc} Inputs: ${inputPairs.join(', ')}.`
