@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 // Mock the Redis client
 jest.mock('./client', () => ({
     redisConnection: {},
+    redisProducerConnection: {},
 }));
 
 // Mock BullMQ
