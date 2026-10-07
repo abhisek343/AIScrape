@@ -1,4 +1,5 @@
 import { ExecutionEnvironment } from '@/types/executor';
+import { MAX_SCREENSHOT_BYTES } from '@/lib/workflow/output-limits';
 import { ScreenshotTask } from '@/lib/workflow/task/screenshot';
 
 export async function ScreenshotExecutor(
@@ -35,6 +36,11 @@ export async function ScreenshotExecutor(
         quality: imageFormat === 'jpeg' && qualityStr ? Number(qualityStr) : undefined,
         encoding: 'binary',
       })) as Buffer;
+    }
+
+    if (buffer.byteLength > MAX_SCREENSHOT_BYTES) {
+      environment.log.error('Screenshot exceeds the maximum persisted output size');
+      return false;
     }
 
     const base64 = buffer.toString('base64');
