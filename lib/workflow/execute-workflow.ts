@@ -120,6 +120,10 @@ export async function executeWorkflow(executionId: string, nextRunAt?: Date) {
 
     await finalizeWorkflowExecution(executionId, execution.workflowId, executionFailed, creditsConsumed);
 
+    if (executionFailed) {
+      throw new Error(`Workflow execution ${executionId} failed`);
+    }
+
     try {
       revalidatePath('/workflow/runs');
     } catch (error) {
@@ -271,6 +275,22 @@ async function executeWorkflowPhase(phase: ExecutionPhase, environment: Environm
 
   const node = nodeParseResult.data as AppNode;
 
+  if (phase.status === ExecutionPhaseStatus.COMPLETED) {
+    const previousOutputs = phase.outputs
+      ? safeJsonParse<Record<string, string>>(phase.outputs, { maxSize: 10 * 1024 * 1024, maxDepth: 20 })
+      : { success: true as const, data: {} };
+
+    environment.phases[node.id] = {
+      inputs: {},
+      outputs: previousOutputs.success ? previousOutputs.data : {},
+    };
+
+    return {
+      success: true,
+      creditsConsumed: phase.creditsConsumed ?? 0,
+    };
+  }
+
   setupEnvironmentForPhase(node, environment, edges);
 
   // Update phase status
@@ -293,7 +313,7 @@ async function executeWorkflowPhase(phase: ExecutionPhase, environment: Environm
   const creditsRequired = taskDefinition.credits ?? 0;
 
   // Free nodes do not need a balance record or a database charge.
-  let success = creditsRequired === 0 || await decrementCredits(userId, creditsRequired, logCollector);
+  let success = creditsRequired === 0 || await chargePhaseCredits(phase.id, userId, creditsRequired, logCollector);
   const creditsConsumed = success ? creditsRequired : 0;
 
   if (success) {
@@ -420,64 +440,68 @@ function createExecutionEnvironment(
   };
 }
 
-async function decrementCredits(userId: string, amount: number, logCollector: LogCollector) {
-  const maxRetries = 3;
-  let retryCount = 0;
-
-  // Validate inputs
-  if (!userId || typeof userId !== 'string') {
-    logCollector.error('Invalid userId provided');
-    return false;
-  }
-  if (!amount || amount <= 0 || !Number.isFinite(amount)) {
-    logCollector.error('Invalid amount provided');
+async function chargePhaseCredits(
+  phaseId: string,
+  userId: string,
+  amount: number,
+  logCollector: LogCollector,
+) {
+  if (!phaseId || !userId || !Number.isFinite(amount) || amount <= 0) {
+    logCollector.error('Invalid credit charge request');
     return false;
   }
 
-  while (retryCount < maxRetries) {
-    try {
-      // Use raw query with proper locking for true atomicity
-      // This prevents race conditions where multiple concurrent executions
-      // could pass the gte check before decrementing
-      const result = await prisma.$queryRaw`
+  try {
+    // Lock the phase row for this statement. If a stalled/retried worker races
+    // the same phase, the second statement observes the first charge and does
+    // not debit the user again.
+    const rows = await prisma.$queryRaw<Array<{ success: boolean; credits: number | null }>>`
+      WITH phase AS MATERIALIZED (
+        SELECT "creditsConsumed"
+        FROM "ExecutionPhase"
+        WHERE id = ${phaseId}
+        FOR UPDATE
+      ),
+      charge AS (
         UPDATE "UserBalance"
         SET credits = credits - ${amount}
-        WHERE "userId" = ${userId} AND credits >= ${amount}
+        WHERE "userId" = ${userId}
+          AND credits >= ${amount}
+          AND COALESCE((SELECT "creditsConsumed" FROM phase), 0) = 0
         RETURNING credits
-      `;
+      ),
+      mark AS (
+        UPDATE "ExecutionPhase"
+        SET "creditsConsumed" = ${amount}
+        WHERE id = ${phaseId}
+          AND EXISTS (SELECT 1 FROM charge)
+        RETURNING "creditsConsumed"
+      )
+      SELECT
+        CASE
+          WHEN COALESCE((SELECT "creditsConsumed" FROM phase), 0) = ${amount} THEN TRUE
+          WHEN EXISTS (SELECT 1 FROM mark) THEN TRUE
+          ELSE FALSE
+        END AS success,
+        COALESCE(
+          (SELECT credits FROM charge),
+          (SELECT credits FROM "UserBalance" WHERE "userId" = ${userId})
+        ) AS credits
+    `;
 
-      if (!result || (result as any[]).length === 0) {
-        logCollector.error('Insufficient balance');
-        return false;
-      }
-
-      const remainingCredits = (result as any[])[0].credits;
-      logCollector.info(`Credits decremented successfully. Remaining: ${remainingCredits}`);
-      return true;
-
-    } catch (error: any) {
-      retryCount++;
-
-      // Log detailed error for debugging
-      console.error(`Credit decrement attempt ${retryCount} failed:`, {
-        userId,
-        amount,
-        error: error.message,
-        code: error.code
-      });
-
-      if (retryCount >= maxRetries) {
-        logCollector.error(`Cannot decrement credits after ${maxRetries} attempts: ${error.message}`);
-        return false;
-      }
-
-      // Wait before retry (exponential backoff with jitter)
-      const delay = Math.pow(2, retryCount) * 100 + Math.random() * 100;
-      await new Promise(resolve => setTimeout(resolve, delay));
+    const result = rows[0];
+    if (!result?.success) {
+      logCollector.error('Insufficient balance');
+      return false;
     }
-  }
 
-  return false;
+    logCollector.info(`Credit reservation confirmed. Remaining: ${result.credits ?? 'unchanged'}`);
+    return true;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    logCollector.error(`Cannot reserve credits: ${message}`);
+    return false;
+  }
 }
 
 async function cleanupEnvironment(environment: Environment) {
