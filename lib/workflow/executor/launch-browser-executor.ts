@@ -188,15 +188,10 @@ export async function LaunchBrowserExecutor(
     // Navigate with timeout and error handling
     environment.log.info(`Navigating to: ${websiteUrl}`);
 
-    await Promise.race([
-      page.goto(websiteUrl, {
-        waitUntil: 'domcontentloaded', // Don't wait for all resources
-        timeout: PAGE_LOAD_TIMEOUT
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Page load timeout')), PAGE_LOAD_TIMEOUT)
-      )
-    ]);
+    await page.goto(websiteUrl, {
+      waitUntil: 'domcontentloaded',
+      timeout,
+    });
 
     // Verify page loaded successfully
     const currentUrl = page.url();
