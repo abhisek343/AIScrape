@@ -1,6 +1,7 @@
 import { ExecutionEnvironment } from '@/types/executor';
 import { ExtractAttributesTask } from '@/lib/workflow/task/extract-attributes';
 import * as cheerio from 'cheerio';
+import { MAX_COLLECTION_ITEMS, exceedsUtf8Limit } from '@/lib/workflow/output-limits';
 
 export async function ExtractAttributesExecutor(
   environment: ExecutionEnvironment<typeof ExtractAttributesTask>
