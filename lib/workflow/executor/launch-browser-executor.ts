@@ -127,6 +127,7 @@ export async function LaunchBrowserExecutor(
 
     // Launch or connect to browser with security settings
     if (process.env.BROWSER_MODE !== 'remote') {
+      const disableSandbox = process.env.CHROMIUM_DISABLE_SANDBOX === 'true';
       // Launch locally in dev with security restrictions
       browser = await Promise.race([
         puppeteer.launch({
