@@ -53,7 +53,7 @@ export async function executeWorkflow(executionId: string, nextRunAt?: Date) {
 
   const edges = definitionParseResult.data.edges as Edge[];
 
-  const environment: Environment = { phases: {}, userId: execution.userId };
+  const environment: Environment = { phases: {}, userId: execution.userId, executionId };
 
   try {
     await initializeWorkflowExecution(execution.id, execution.workflowId, nextRunAt);
@@ -368,7 +368,7 @@ async function executePhase(
     return false;
   }
 
-  const executionEnvironment: ExecutionEnvironment<any> = createExecutionEnvironment(node, environment, logCollector);
+  const executionEnvironment: ExecutionEnvironment<any> = createExecutionEnvironment(node, environment, logCollector, phase.id);
 
   return await runFn(executionEnvironment);
 }
@@ -420,7 +420,8 @@ function setupEnvironmentForPhase(node: AppNode, environment: Environment, edges
 function createExecutionEnvironment(
   node: AppNode,
   environment: Environment,
-  logCollector: LogCollector
+  logCollector: LogCollector,
+  phaseId: string,
 ): ExecutionEnvironment<any> {
   return {
     getInput: (name: string) => environment.phases[node.id]?.inputs[name],
@@ -435,6 +436,8 @@ function createExecutionEnvironment(
     setPage: (page: Page) => (environment.page = page),
 
     getUserId: () => environment.userId,
+    getExecutionId: () => environment.executionId,
+    getPhaseId: () => phaseId,
 
     log: logCollector,
   };
