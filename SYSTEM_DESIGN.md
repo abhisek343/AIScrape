@@ -86,7 +86,7 @@ Default workflow job behavior:
 - failed jobs retained for inspection
 - terminal failures copied to `workflow-execution-dead-letter-queue`
 
-The worker currently processes up to five jobs concurrently. That is a configured worker concurrency value, **not** a production-capacity claim.
+The worker concurrency is deployment-configurable through `WORKER_CONCURRENCY` (bounded to 1–8, default 2). That is a runtime setting, **not** a production-capacity claim.
 
 ```mermaid
 sequenceDiagram
