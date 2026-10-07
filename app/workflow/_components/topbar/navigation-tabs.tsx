@@ -37,11 +37,9 @@ export default function NavigationTabs({ workflowId }: { workflowId: string }) {
         <Tabs value={activeValue} className="w-auto">
           <TabsList className="grid w-full grid-cols-2">
             {tabs.map((tab) => (
-              <Link key={tab.value} href={tab.href} legacyBehavior passHref>
-                <TabsTrigger value={tab.value} className="w-full">
-                  {tab.label}
-                </TabsTrigger>
-              </Link>
+              <TabsTrigger key={tab.value} value={tab.value} className="w-full" asChild>
+                <Link href={tab.href}>{tab.label}</Link>
+              </TabsTrigger>
             ))}
           </TabsList>
         </Tabs>
