@@ -12,7 +12,6 @@ import { redisConnection } from '@/lib/queue/client';
 // Security and resource management constants
 const BROWSER_TIMEOUT = 60000; // 60 seconds for browser operations
 const PAGE_LOAD_TIMEOUT = 30000; // 30 seconds for page load
-const MAX_MEMORY_MB = 512; // 512MB memory limit per browser
 
 
 async function setupSecurePage(page: Page, allowedHostname: string): Promise<void> {
@@ -147,8 +146,6 @@ export async function LaunchBrowserExecutor(
           '--disable-renderer-backgrounding',
           '--disable-features=TranslateUI',
           '--disable-ipc-flooding-protection',
-          '--memory-pressure-off',
-          `--max_old_space_size=${MAX_MEMORY_MB}`,
           ...(isIP(target.hostname) ? [] : [`--host-resolver-rules=MAP ${target.hostname} ${resolved.address}`]),
         ],
         timeout: BROWSER_TIMEOUT,
