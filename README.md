@@ -131,6 +131,8 @@ The core queue/browser smoke does not require production credentials. These feat
 | Authenticated UI | `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` |
 | Gemini features | `GOOGLE_API_KEY` |
 | Google Search grounding | `GEMINI_ENABLE_GOOGLE_SEARCH=true` |
+| Scheduled execution | `API_SECRET` |
+| Encrypted stored credentials | `ENCRYPTION_KEY` |
 | Stripe billing | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
 | Remote browser mode | `BROWSER_MODE=remote`, `BRIGHT_DATA_BROWSER_WS` |
 
