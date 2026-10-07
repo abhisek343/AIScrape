@@ -63,7 +63,7 @@ export async function DeliverViaWebhookExecutor(
 
     const responseText = await response.text();
     environment.log.info(
-      `Webhook delivered successfully. Response: ${responseText.substring(0, 500)}${responseText.length > 500 ? '...[truncated]' : ''}`
+      `Webhook delivered successfully with status ${response.status ?? 'unknown'} and ${Buffer.byteLength(responseText, 'utf8')} response bytes`
     );
     return true;
   } catch (error: unknown) {
