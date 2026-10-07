@@ -1,6 +1,6 @@
 import { Queue } from 'bullmq';
 import type { JobsOptions } from 'bullmq';
-import { redisConnection } from './client';
+import { redisProducerConnection } from './client';
 
 export const WORKFLOW_QUEUE_NAME = 'workflow-execution-queue';
 export const WORKFLOW_DEAD_LETTER_QUEUE_NAME = 'workflow-execution-dead-letter-queue';
@@ -20,7 +20,7 @@ export const workflowJobOptions: JobsOptions = {
 };
 
 export const workflowQueue = new Queue(WORKFLOW_QUEUE_NAME, {
-    connection: redisConnection,
+    connection: redisProducerConnection,
     defaultJobOptions: workflowJobOptions,
 });
 
@@ -35,7 +35,7 @@ export async function submitWorkflowToQueue(workflowId: string, executionId: str
 }
 
 export const workflowDeadLetterQueue = new Queue(WORKFLOW_DEAD_LETTER_QUEUE_NAME, {
-    connection: redisConnection,
+    connection: redisProducerConnection,
     defaultJobOptions: {
         removeOnComplete: 1000,
         removeOnFail: 1000,
