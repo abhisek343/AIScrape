@@ -1,5 +1,6 @@
 import { PageToHtmlTask } from '@/lib/workflow/task/page-to-html';
 import { ExecutionEnvironment } from '@/types/executor';
+import { exceedsUtf8Limit } from '@/lib/workflow/output-limits';
 
 export async function PageToHtmlExecutor(environment: ExecutionEnvironment<typeof PageToHtmlTask>): Promise<boolean> {
   try {
