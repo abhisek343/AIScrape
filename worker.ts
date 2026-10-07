@@ -5,6 +5,7 @@ import {
     moveTerminalFailureToDeadLetter,
     WORKFLOW_QUEUE_NAME,
 } from './lib/queue/workflow.queue';
+import { markWorkflowExecutionTerminalFailure } from './lib/workflow/execution-lifecycle';
 
 function log(event: string, fields: Record<string, unknown> = {}) {
     console.log(JSON.stringify({ service: 'aiscrape-worker', event, at: new Date().toISOString(), ...fields }));
@@ -42,9 +43,53 @@ worker.on('failed', async (job, err) => {
     }));
     if (terminal) {
         try {
+            await markWorkflowExecutionTerminalFailure(job.data.workflowId, job.data.executionId);
+        } catch (stateError) {
+            console.error(JSON.stringify({
+                service: 'aiscrape-worker',
+                event: 'job.terminal_state_reconcile_failed',
+                executionId: job.data.executionId,
+                error: String(stateError),
+            }));
+        }
+
+        try {
             await moveTerminalFailureToDeadLetter(job.data, err.message, job.attemptsMade);
         } catch (dlqError) {
             console.error(JSON.stringify({ service: 'aiscrape-worker', event: 'job.dead_letter_failed', error: String(dlqError) }));
         }
     }
 });
+
+worker.on('error', (error) => {
+    console.error(JSON.stringify({
+        service: 'aiscrape-worker',
+        event: 'worker.error',
+        at: new Date().toISOString(),
+        error: error.message,
+    }));
+});
+
+let shuttingDown = false;
+async function shutdown(signal: string) {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    log('worker.shutdown_started', { signal });
+    try {
+        await worker.close();
+        await redisConnection.quit();
+        log('worker.shutdown_completed', { signal });
+        process.exit(0);
+    } catch (error) {
+        console.error(JSON.stringify({
+            service: 'aiscrape-worker',
+            event: 'worker.shutdown_failed',
+            signal,
+            error: String(error),
+        }));
+        process.exit(1);
+    }
+}
+
+process.once('SIGTERM', () => void shutdown('SIGTERM'));
+process.once('SIGINT', () => void shutdown('SIGINT'));
