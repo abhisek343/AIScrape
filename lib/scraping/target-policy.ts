@@ -67,12 +67,30 @@ function isBlockedIpv6(address: string): boolean {
   if (mapped) return isBlockedIpv4(mapped[1]);
   const segments = expandIpv6(address);
   if (!segments) return true;
+
+  // IPv4-mapped addresses can also be written in hexadecimal form
+  // (::ffff:7f00:1). Normalize those before applying the IPv4 policy.
+  const mappedHex = segments.slice(0, 5).every((segment) => segment === 0) && segments[5] === 0xffff;
+  if (mappedHex) {
+    const ipv4 = [
+      segments[6] >> 8,
+      segments[6] & 0xff,
+      segments[7] >> 8,
+      segments[7] & 0xff,
+    ].join('.');
+    return isBlockedIpv4(ipv4);
+  }
+
   const first = segments[0];
   const allZero = segments.every((segment) => segment === 0);
   const loopback = segments.slice(0, 7).every((segment) => segment === 0) && segments[7] === 1;
   // ::/128, ::1/128, fc00::/7 (ULA), fe80::/10 (link-local), ff00::/8
   // (multicast), and the IPv6 documentation range are non-public.
-  return allZero || loopback || (first & 0xfe00) === 0xfc00 ||
+  const ipv4Compatible = segments.slice(0, 6).every((segment) => segment === 0);
+  const nat64WellKnown = first === 0x0064 && segments[1] === 0xff9b &&
+    segments.slice(2, 6).every((segment) => segment === 0);
+
+  return allZero || loopback || ipv4Compatible || nat64WellKnown || (first & 0xfe00) === 0xfc00 ||
     (first & 0xffc0) === 0xfe80 || (first & 0xff00) === 0xff00 ||
     (first === 0x2001 && segments[1] === 0x0db8);
 }
