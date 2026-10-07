@@ -15,7 +15,6 @@
   "dependencies": {
     "@clerk/nextjs": "^5.7.6",
     "@google/genai": "^1.1.0",
-    "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.9.1",
     "@neondatabase/serverless": "0.10.3",
     "@prisma/adapter-neon": "5.22.0",
