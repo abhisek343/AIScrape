@@ -1,0 +1,1 @@
+export const GENERAL_CHAT_SESSION_ID = '___GENERAL_CHAT_SESSION___';
