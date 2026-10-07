@@ -7,6 +7,8 @@ import { WorkflowStatus } from '@/types/workflow';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+const MAX_WORKFLOWS_PER_TICK = 50;
+
 function isValidSecret(secret: string): boolean {
   const API_SECRET = process.env.API_SECRET;
   if (!API_SECRET) return false;
@@ -38,6 +40,8 @@ export async function GET(req: Request) {
       cron: { not: null },
       nextRunAt: { lte: now },
     },
+    orderBy: { nextRunAt: 'asc' },
+    take: MAX_WORKFLOWS_PER_TICK,
   });
 
   const results = await Promise.allSettled(
@@ -54,7 +58,8 @@ export async function GET(req: Request) {
   return Response.json({
     workflowsToRun: workflows.length,
     triggered: results.filter(r => r.status === 'fulfilled').length,
-    failed: failures.length
+    failed: failures.length,
+    batchLimit: MAX_WORKFLOWS_PER_TICK,
   }, { status: 200 });
 }
 
