@@ -299,7 +299,7 @@ async function executeWorkflowPhase(phase: ExecutionPhase, environment: Environm
     data: {
       status: ExecutionPhaseStatus.RUNNING,
       startedAt,
-      inputs: JSON.stringify(environment.phases[node.id].inputs),
+      inputs: JSON.stringify(redactInputsForPersistence(environment.phases[node.id].inputs)),
     },
   });
 
@@ -415,6 +415,17 @@ function setupEnvironmentForPhase(node: AppNode, environment: Environment, edges
 
     environment.phases[node.id].inputs[input.name] = outputValue;
   }
+}
+
+const SENSITIVE_INPUT_NAME = /(credential|authorization|headers?|cookies?|token|secret|password|api.?key|local.?storage)/i;
+
+function redactInputsForPersistence(inputs: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(inputs).map(([name, value]) => [
+      name,
+      SENSITIVE_INPUT_NAME.test(name) ? '[redacted]' : value,
+    ]),
+  );
 }
 
 function createExecutionEnvironment(
