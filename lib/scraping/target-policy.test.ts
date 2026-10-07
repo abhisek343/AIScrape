@@ -9,7 +9,19 @@ describe('scrape target policy', () => {
     expect(validateScrapeTarget('https://not-example.com', 'example.com')).toContain('not in');
   });
 
-  it.each(['127.0.0.1', '169.254.169.254', '192.0.2.1', '198.18.0.1', '::1', 'fe80::1', 'fc00::1', '2001:db8::1'])
+  it.each([
+    '127.0.0.1',
+    '169.254.169.254',
+    '192.0.2.1',
+    '198.18.0.1',
+    '::1',
+    '::ffff:127.0.0.1',
+    '::ffff:7f00:1',
+    'fe80::1',
+    'fc00::1',
+    '64:ff9b::7f00:1',
+    '2001:db8::1',
+  ])
     ('blocks private, link-local, and reserved address %s', (address) => expect(isBlockedAddress(address)).toBe(true));
 
   it('fails closed when DNS resolves a public hostname to a private address', async () => {
