@@ -14,6 +14,7 @@ import { TaskRegistry } from '@/lib/workflow/task/registry';
 import { AiAutomationSpec, buildDefinitionFromAiSpec } from '@/lib/workflow/ai-automation';
 import { flowToExecutionPlan, FlowToExecutionPlanValidationError } from '@/lib/workflow/execution-plan';
 import { AppNode } from '@/types/appnode';
+import { GENERAL_CHAT_SESSION_ID } from '@/lib/chat/constants';
 
 // Initialize Google Generative AI
 if (!process.env.GOOGLE_API_KEY) {
@@ -157,8 +158,7 @@ export async function POST(req: NextRequest) {
       return new NextResponse('Message is required', { status: 400 });
     }
 
-    const GENERAL_CHAT_PLACEHOLDER = '___GENERAL_CHAT_SESSION___';
-    const effectiveWorkflowId = clientWorkflowId || GENERAL_CHAT_PLACEHOLDER;
+    const effectiveWorkflowId = clientWorkflowId || GENERAL_CHAT_SESSION_ID;
 
     // Retrieve user's chat session history
     let chatSession = await prisma.chatSession.findUnique({
@@ -234,7 +234,7 @@ export async function POST(req: NextRequest) {
     const availableNodesDescription = buildAvailableNodesDescription();
 
     let workflowContextHeader = "";
-    if (clientWorkflowId && clientWorkflowId !== GENERAL_CHAT_PLACEHOLDER) {
+    if (clientWorkflowId && clientWorkflowId !== GENERAL_CHAT_SESSION_ID) {
       const currentWorkflow = await prisma.workflow.findUnique({
         where: { id: clientWorkflowId, userId: userId },
         select: { name: true, description: true, definition: true }
