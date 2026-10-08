@@ -7,7 +7,7 @@ import prisma from '@/lib/prisma';
 import { WorkflowStatus } from '@/types/workflow';
 
 export async function updateWorkflow({ id, definition }: { id: string; definition: string }) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     throw new Error('Unauthenticated');

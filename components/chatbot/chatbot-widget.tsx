@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useHydrated } from "@/hooks/use-hydrated";
 
 interface Message {
   role: "user" | "assistant";
@@ -61,7 +62,7 @@ export function ChatbotWidget({ workflowId, getFlowState, onAutoLayout }: Chatbo
 }
 
 function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWidgetProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -73,11 +74,6 @@ function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWid
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { toast } = useToast();
-
-  // Prevent hydration mismatch by only rendering after mount
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Note: We intentionally don't use useReactFlow() here because:
   // 1. The component may be rendered outside of a valid ReactFlow context
@@ -107,15 +103,15 @@ function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWid
     return () => clearTimeout(timeoutId);
   }, []);
 
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
   useEffect(() => {
     scrollToBottom();
     const cleanup = runMermaid();
     return cleanup;
-  }, [messages, runMermaid, isOpen]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, [messages, runMermaid, isOpen, scrollToBottom]);
 
   const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || input;
@@ -221,8 +217,6 @@ function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWid
       setIsLoading(false);
     }
   };
-
-  console.log("DEBUG: ChatbotWidget Rendered");
 
   // Don't render anything until mounted to prevent hydration mismatch with AnimatePresence
   if (!mounted) return null;
@@ -412,7 +406,7 @@ const ChatMessageContent: React.FC<{ content: string }> = ({ content }) => {
         const mermaidMatch = part.match(/\`\`\`mermaid([\s\S]*?)\`\`\`/);
         if (mermaidMatch && mermaidMatch[1]) {
           const mermaidCode = mermaidMatch[1].trim();
-          const mermaidId = `mermaid-${Date.now()}-${index}`;
+          const mermaidId = `mermaid-${index}`;
           return (
             <div key={mermaidId} className="my-3 rounded-xl overflow-hidden border border-white/10 bg-black/40 shadow-lg">
               <div className="px-3 py-2 border-b border-white/5 bg-white/5 text-[10px] font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-2">

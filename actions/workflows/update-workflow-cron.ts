@@ -55,7 +55,7 @@ function validateCronFrequency(cronExpression: string): { valid: boolean; error?
 }
 
 export async function updateWorkflowCron({ id, cron }: { id: string; cron: string }) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     throw new Error('Unauthenticated');

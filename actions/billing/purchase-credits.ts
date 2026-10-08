@@ -8,7 +8,7 @@ import { getAppUrl } from '@/lib/helper/app-url';
 import { redirect } from 'next/navigation';
 
 export async function purchaseCredits(packId: PackId) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     throw new Error('Unauthenticated');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import cronstrue from 'cronstrue';
@@ -19,9 +19,6 @@ import { cn } from '@/lib/utils';
 
 export default function SchedulerDialog(props: { workflowId: string; cron: string | null }) {
   const [cron, setCron] = useState(props.cron || '');
-  const [validCron, setValidCron] = useState(false);
-  const [readableCron, setReadableCron] = useState('');
-
   const mutation = useMutation({
     mutationFn: updateWorkflowCron,
     onSuccess: () => {
@@ -42,16 +39,17 @@ export default function SchedulerDialog(props: { workflowId: string; cron: strin
     },
   });
 
-  useEffect(() => {
+  const cronPreview = useMemo(() => {
     try {
       parser.parseExpression(cron);
-      const humanCronStr = cronstrue.toString(cron);
-      setValidCron(true);
-      setReadableCron(humanCronStr);
-    } catch (error) {
-      setValidCron(false);
+      return { valid: true, readable: cronstrue.toString(cron) };
+    } catch {
+      return { valid: false, readable: '' };
     }
   }, [cron]);
+
+  const validCron = cronPreview.valid;
+  const readableCron = cronPreview.readable;
 
   const workflowHasValidCron = props.cron && props.cron.length > 0;
   const readableSavedCron = workflowHasValidCron && cronstrue.toString(props.cron!);

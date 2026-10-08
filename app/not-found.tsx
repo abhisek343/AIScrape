@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { SignedIn, SignedOut } from '@clerk/nextjs';
+import { Show } from '@clerk/nextjs';
 
 export default function NotFoundPage() {
   return (
@@ -14,7 +14,7 @@ export default function NotFoundPage() {
           Dont&apos;t worry, even the best data sometimes gets lost in the internet.
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <SignedIn>
+          <Show when="signed-in">
             <Link
               href="/home"
               className="flex items-center justify-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/80 transition-colors"
@@ -22,8 +22,8 @@ export default function NotFoundPage() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
             </Link>
-          </SignedIn>
-          <SignedOut>
+          </Show>
+          <Show when="signed-out">
             <Link
               href="/"
               className="flex items-center justify-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/80 transition-colors"
@@ -31,7 +31,7 @@ export default function NotFoundPage() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Home
             </Link>
-          </SignedOut>
+          </Show>
         </div>
       </div>
       <footer className="mt-12 text-center text-sm text-muted-foreground">

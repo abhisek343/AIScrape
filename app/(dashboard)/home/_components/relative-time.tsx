@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from 'date-fns';
-import { useEffect, useState } from 'react';
+import { useHydrated } from '@/hooks/use-hydrated';
 
 interface RelativeTimeProps {
     date: Date | string;
@@ -9,13 +9,8 @@ interface RelativeTimeProps {
 }
 
 export default function RelativeTime({ date, suffix = 'ago' }: RelativeTimeProps) {
-    const [mounted, setMounted] = useState(false);
+    const mounted = useHydrated();
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    // Prevent hydration mismatch by showing nothing until client-side mount
     if (!mounted) {
         return <span>recently</span>;
     }

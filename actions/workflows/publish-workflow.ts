@@ -10,7 +10,7 @@ import { calculateWorkflowCost } from '@/lib/workflow/helpers';
 import { WorkflowStatus } from '@/types/workflow';
 
 export async function publishWorkflow({ id, flowDefinition }: { id: string; flowDefinition: string }) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     throw new Error('Unauthenticated');

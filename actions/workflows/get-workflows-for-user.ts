@@ -34,7 +34,7 @@ const getCachedWorkflowsForUser = (userId: string) =>
   )();
 
 export async function getWorkflowsForUser() {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     throw new Error('Unauthenticated');

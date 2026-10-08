@@ -25,7 +25,7 @@ const ChatMessageContent: React.FC<{ content: string }> = ({ content }) => {
         const mermaidMatch = part.match(/\`\`\`mermaid([\s\S]*?)\`\`\`/);
         if (mermaidMatch && mermaidMatch[1]) {
           const mermaidCode = mermaidMatch[1].trim();
-          const mermaidId = `mermaid-${Date.now()}-${index}`;
+          const mermaidId = `mermaid-${index}`;
           return (
             <div key={mermaidId} className="mermaid p-4 my-2 bg-gray-800 rounded overflow-auto" data-mermaid-id={mermaidId}>
               {mermaidCode}
@@ -75,16 +75,16 @@ export default function ChatPage() {
     }, 100);
   }, []);
 
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
   useEffect(() => {
     scrollToBottom();
     if (messages.some(msg => msg.content.includes("```mermaid"))) {
       runMermaid();
     }
-  }, [messages, runMermaid]);
-  
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, [messages, runMermaid, scrollToBottom]);
 
   const handleSendMessage = async () => {
     if (input.trim() === "") return;

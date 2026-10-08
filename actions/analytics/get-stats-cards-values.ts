@@ -10,7 +10,7 @@ import { WorkflowExecutionStatus } from '@/types/workflow';
 const { COMPLETED, FAILED } = WorkflowExecutionStatus;
 
 export async function getStatsCardsValues(period: Period) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     throw new Error('Unauthenticated');

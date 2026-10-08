@@ -111,7 +111,7 @@ function buildExtractTextSpec(url: string, selector: string): AiAutomationSpec {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId } = auth();
+  const { userId } = await auth();
   if (!userId) return new NextResponse('Unauthorized', { status: 401 });
 
   let body: unknown;
