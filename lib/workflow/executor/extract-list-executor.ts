@@ -15,11 +15,25 @@ export async function ExtractListExecutor(
     }
     const $ = cheerio.load(html);
     const items: string[] = [];
+    let overflow = false;
     $(selector).each((_, el) => {
+      if (items.length >= MAX_COLLECTION_ITEMS) {
+        overflow = true;
+        return false;
+      }
       const text = $(el).text().trim();
       if (text) items.push(text);
     });
-    environment.setOutput('Items (JSON)', JSON.stringify(items));
+    if (overflow) {
+      environment.log.error('Extracted list exceeds the maximum item count');
+      return false;
+    }
+    const output = JSON.stringify(items);
+    if (exceedsUtf8Limit(output)) {
+      environment.log.error('Extracted list exceeds the maximum persisted output size');
+      return false;
+    }
+    environment.setOutput('Items (JSON)', output);
     return true;
   } catch (error: any) {
     environment.log.error(error.message);
