@@ -11,7 +11,7 @@ import { WorkflowExecutionStatus } from '@/types/workflow';
 type Stats = Record<string, { success: number; failed: number }>;
 
 export async function getWorkflowExecutionStats(period: Period) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     throw new Error('Unauthenticated');
