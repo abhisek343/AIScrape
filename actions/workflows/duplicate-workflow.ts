@@ -14,7 +14,7 @@ export async function duplicateWorkflow(form: duplicateWorkflowSchemaType) {
     throw new Error('Invalid form data');
   }
 
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     throw new Error('Unauthenticated');
