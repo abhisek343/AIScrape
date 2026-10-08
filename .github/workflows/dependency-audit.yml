@@ -6,17 +6,22 @@ on:
       - chore/dependency-security-20261008
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   audit:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: chore/dependency-security-20261008
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+      - name: Refresh lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Audit dependency graph
         run: |
           npm audit --json > audit.json || true
@@ -24,45 +29,30 @@ jobs:
           const fs = require('fs');
           const audit = JSON.parse(fs.readFileSync('audit.json', 'utf8'));
           console.log('AUDIT_METADATA=' + JSON.stringify(audit.metadata?.vulnerabilities || {}));
-          const vulnerabilities = Object.entries(audit.vulnerabilities || {})
+          const direct = Object.entries(audit.vulnerabilities || {})
+            .filter(([, v]) => v.isDirect)
             .map(([name, v]) => ({
               name,
               severity: v.severity,
-              direct: Boolean(v.isDirect),
               range: v.range,
-              effects: v.effects || [],
               fixAvailable: v.fixAvailable,
-              via: (v.via || []).map(x =>
-                typeof x === 'string'
-                  ? x
-                  : {
-                      source: x.source,
-                      name: x.name,
-                      severity: x.severity,
-                      title: x.title,
-                      range: x.range,
-                      url: x.url,
-                    }
-              ),
-            }))
-            .sort((a, b) => {
-              const rank = { critical: 4, high: 3, moderate: 2, low: 1 };
-              return (rank[b.severity] || 0) - (rank[a.severity] || 0)
-                || Number(b.direct) - Number(a.direct)
-                || a.name.localeCompare(b.name);
-            });
-          const direct = vulnerabilities.filter(v => v.direct);
-          console.log('DIRECT_VULNERABILITIES_BEGIN');
-          console.log(JSON.stringify(direct, null, 2));
-          console.log('DIRECT_VULNERABILITIES_END');
-
-          const roots = {};
-          for (const vulnerability of vulnerabilities) {
-            for (const effect of vulnerability.effects || []) {
-              roots[effect] = (roots[effect] || 0) + 1;
-            }
-          }
-          console.log('TRANSITIVE_EFFECT_COUNTS=' + JSON.stringify(
-            Object.entries(roots).sort((a, b) => b[1] - a[1]).slice(0, 30)
-          ));
+              via: (v.via || []).map(x => typeof x === 'string' ? x : {
+                source: x.source,
+                severity: x.severity,
+                title: x.title,
+                range: x.range,
+                url: x.url,
+              }),
+            }));
+          console.log('DIRECT_VULNERABILITIES=' + JSON.stringify(direct));
           NODE
+      - name: Commit lockfile
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "Refresh lockfile after security upgrades"
+          git push
