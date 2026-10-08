@@ -1,0 +1,57 @@
+name: Dependency security audit
+
+on:
+  push:
+    branches:
+      - chore/dependency-security-20261008
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Audit dependency graph
+        run: |
+          npm audit --json > audit.json || true
+          node - <<'NODE'
+          const fs = require('fs');
+          const audit = JSON.parse(fs.readFileSync('audit.json', 'utf8'));
+          console.log('AUDIT_METADATA=' + JSON.stringify(audit.metadata?.vulnerabilities || {}));
+          const vulnerabilities = Object.entries(audit.vulnerabilities || {})
+            .map(([name, v]) => ({
+              name,
+              severity: v.severity,
+              direct: Boolean(v.isDirect),
+              range: v.range,
+              effects: v.effects || [],
+              fixAvailable: v.fixAvailable,
+              via: (v.via || []).map(x =>
+                typeof x === 'string'
+                  ? x
+                  : {
+                      source: x.source,
+                      name: x.name,
+                      severity: x.severity,
+                      title: x.title,
+                      range: x.range,
+                      url: x.url,
+                    }
+              ),
+            }))
+            .sort((a, b) => {
+              const rank = { critical: 4, high: 3, moderate: 2, low: 1 };
+              return (rank[b.severity] || 0) - (rank[a.severity] || 0)
+                || Number(b.direct) - Number(a.direct)
+                || a.name.localeCompare(b.name);
+            });
+          console.log('AUDIT_VULNERABILITIES_BEGIN');
+          console.log(JSON.stringify(vulnerabilities, null, 2));
+          console.log('AUDIT_VULNERABILITIES_END');
+          NODE
