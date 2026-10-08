@@ -6,7 +6,7 @@ import prisma from '@/lib/prisma';
 import { Period } from '@/types/analytics';
 
 export async function getPeriods() {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     throw new Error('Unauthenticated');
