@@ -19,7 +19,7 @@ export async function createWorkflow(
   description?: string,
   shouldRedirect: boolean = true // New parameter
 ): Promise<Workflow> {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     throw new Error('Unauthenticated');
