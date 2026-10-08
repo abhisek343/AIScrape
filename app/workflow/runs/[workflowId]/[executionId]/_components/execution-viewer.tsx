@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { ExecutionLog, ExecutionPhase } from '@prisma/client';
@@ -43,28 +43,21 @@ export default function ExecutionViewer({ initialData }: { initialData: Executio
     refetchInterval: (q) => (q.state.data?.status === WorkflowExecutionStatus.RUNNING ? 1000 : false),
   });
 
-  const phaseDetails = useQuery({
-    queryKey: ['phaseDetails', selectedPhase, query.data?.status],
-    enabled: selectedPhase !== null,
-    queryFn: () => getWorkflowPhaseDetails(selectedPhase!),
-  });
-
   const isRunning = query.data?.status === WorkflowExecutionStatus.RUNNING;
+  const phases = query.data?.phases || [];
+  const autoSelectedPhase = phases
+    .toSorted((a: ExecutionPhase, b: ExecutionPhase) => {
+      const aDate = isRunning ? a.startedAt : a.completedAt;
+      const bDate = isRunning ? b.startedAt : b.completedAt;
+      return (bDate?.getTime() ?? 0) - (aDate?.getTime() ?? 0);
+    })[0]?.id ?? null;
+  const activePhase = selectedPhase ?? autoSelectedPhase;
 
-  useEffect(() => {
-    // While running we auto-select the current running phase in the sidebar
-    const phases = query.data?.phases || [];
-    if (isRunning) {
-      // Select the last executed phase
-      const phaseToSelect = phases.toSorted((a: ExecutionPhase, b: ExecutionPhase) => (a.startedAt! > b.startedAt! ? -1 : 1))[0];
-
-      setSelectedPhase(phaseToSelect.id);
-      return;
-    }
-
-    const phaseToSelect = phases.toSorted((a: ExecutionPhase, b: ExecutionPhase) => (a.completedAt! > b.completedAt! ? -1 : 1))[0];
-    setSelectedPhase(phaseToSelect.id);
-  }, [query.data?.phases, isRunning, setSelectedPhase]);
+  const phaseDetails = useQuery({
+    queryKey: ['phaseDetails', activePhase, query.data?.status],
+    enabled: activePhase !== null && !isRunning,
+    queryFn: () => getWorkflowPhaseDetails(activePhase!),
+  });
 
   const duration = datesToDurationString(query.data?.completedAt, query.data?.startedAt);
 
@@ -120,7 +113,7 @@ export default function ExecutionViewer({ initialData }: { initialData: Executio
           {query.data?.phases.map((phase: ExecutionPhase, index: number) => (
             <Button
               key={phase.id}
-              variant={selectedPhase === phase.id ? 'secondary' : 'ghost'}
+              variant={activePhase === phase.id ? 'secondary' : 'ghost'}
               className="w-full justify-between"
               onClick={() => {
                 if (isRunning) return;
@@ -142,7 +135,7 @@ export default function ExecutionViewer({ initialData }: { initialData: Executio
             <p className="font-bold">Run is in progress, please wait</p>
           </div>
         )}
-        {!isRunning && !selectedPhase && (
+        {!isRunning && !activePhase && (
           <div className="flex items-center flex-col gap-2 justify-center h-full w-full">
             <div className="flex flex-col gap-1 text-center">
               <p className="font-bold">No phase selected</p>
@@ -150,7 +143,7 @@ export default function ExecutionViewer({ initialData }: { initialData: Executio
             </div>
           </div>
         )}
-        {!isRunning && selectedPhase && phaseDetails.data && (
+        {!isRunning && activePhase && phaseDetails.data && (
           <div className="flex flex-col py-4 container gap-4 overflow-auto">
             <div className="flex gap-2 items-center">
               <Badge variant="outline" className="space-x-4">
