@@ -51,7 +51,18 @@ jobs:
                 || Number(b.direct) - Number(a.direct)
                 || a.name.localeCompare(b.name);
             });
-          console.log('AUDIT_VULNERABILITIES_BEGIN');
-          console.log(JSON.stringify(vulnerabilities, null, 2));
-          console.log('AUDIT_VULNERABILITIES_END');
+          const direct = vulnerabilities.filter(v => v.direct);
+          console.log('DIRECT_VULNERABILITIES_BEGIN');
+          console.log(JSON.stringify(direct, null, 2));
+          console.log('DIRECT_VULNERABILITIES_END');
+
+          const roots = {};
+          for (const vulnerability of vulnerabilities) {
+            for (const effect of vulnerability.effects || []) {
+              roots[effect] = (roots[effect] || 0) + 1;
+            }
+          }
+          console.log('TRANSITIVE_EFFECT_COUNTS=' + JSON.stringify(
+            Object.entries(roots).sort((a, b) => b[1] - a[1]).slice(0, 30)
+          ));
           NODE
