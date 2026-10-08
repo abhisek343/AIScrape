@@ -16,11 +16,25 @@ export async function ExtractAttributesExecutor(
     }
     const $ = cheerio.load(html);
     const values: string[] = [];
+    let overflow = false;
     $(selector).each((_, el) => {
+      if (values.length >= MAX_COLLECTION_ITEMS) {
+        overflow = true;
+        return false;
+      }
       const val = $(el).attr(attribute);
       if (typeof val === 'string') values.push(val);
     });
-    environment.setOutput('Values (JSON)', JSON.stringify(values));
+    if (overflow) {
+      environment.log.error('Extracted attributes exceed the maximum item count');
+      return false;
+    }
+    const output = JSON.stringify(values);
+    if (exceedsUtf8Limit(output)) {
+      environment.log.error('Extracted attributes exceed the maximum persisted output size');
+      return false;
+    }
+    environment.setOutput('Values (JSON)', output);
     return true;
   } catch (error: any) {
     environment.log.error(error.message);

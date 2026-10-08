@@ -1,5 +1,6 @@
 import { FillInputTask } from '@/lib/workflow/task/fill-input';
 import { ExecutionEnvironment } from '@/types/executor';
+import { failExecutor, requirePage } from '@/lib/workflow/executor/executor-helpers';
 
 export async function FillInputExecutor(environment: ExecutionEnvironment<typeof FillInputTask>): Promise<boolean> {
   try {
@@ -15,17 +16,13 @@ export async function FillInputExecutor(environment: ExecutionEnvironment<typeof
       return false;
     }
 
-    const page = environment.getPage();
-    if (!page) {
-      environment.log.error('No page found');
-      return false;
-    }
+    const page = requirePage(environment);
+    if (!page) return false;
 
     await page.type(selector, value);
 
     return true;
-  } catch (error: any) {
-    environment.log.error(error.message);
-    return false;
+  } catch (error: unknown) {
+    return failExecutor(environment, error);
   }
 }

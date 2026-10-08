@@ -1,5 +1,6 @@
 import { ScrollToElementTask } from '@/lib/workflow/task/scroll-to-element';
 import { ExecutionEnvironment } from '@/types/executor';
+import { failExecutor, requirePage } from '@/lib/workflow/executor/executor-helpers';
 
 export async function ScrollToElementExecutor(
   environment: ExecutionEnvironment<typeof ScrollToElementTask>
@@ -11,11 +12,8 @@ export async function ScrollToElementExecutor(
       return false;
     }
 
-    const page = environment.getPage();
-    if (!page) {
-      environment.log.error('No page found');
-      return false;
-    }
+    const page = requirePage(environment);
+    if (!page) return false;
 
     await page.evaluate((selector) => {
       const element = document.querySelector(selector);
@@ -27,8 +25,7 @@ export async function ScrollToElementExecutor(
     }, selector);
 
     return true;
-  } catch (error: any) {
-    environment.log.error(error.message);
-    return false;
+  } catch (error: unknown) {
+    return failExecutor(environment, error);
   }
 }
