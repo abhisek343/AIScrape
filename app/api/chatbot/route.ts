@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
     return new NextResponse('Server configuration error: Chatbot is not configured.', { status: 500 });
   }
 
-  const { userId } = auth();
+  const { userId } = await auth();
   if (!userId) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
