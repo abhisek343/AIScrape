@@ -5,7 +5,7 @@ import { GENERAL_CHAT_SESSION_ID } from '@/lib/chat/constants';
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
 
     if (!userId) {
       return new NextResponse('Unauthorized', { status: 401 });
