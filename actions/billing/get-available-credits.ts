@@ -28,7 +28,7 @@ const getCachedCredits = (userId: string) =>
   )();
 
 export async function getAvailableCredits() {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     throw new Error('Unauthenticated');
