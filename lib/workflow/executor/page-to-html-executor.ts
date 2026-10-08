@@ -10,6 +10,10 @@ export async function PageToHtmlExecutor(environment: ExecutionEnvironment<typeo
       return false;
     }
     const html = await page.content();
+    if (exceedsUtf8Limit(html)) {
+      environment.log.error('Page HTML exceeds the maximum persisted output size');
+      return false;
+    }
     environment.setOutput('Html', html);
 
     return true;
