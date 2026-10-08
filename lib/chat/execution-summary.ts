@@ -31,7 +31,10 @@ export async function waitForExecutionAndSummarize(
     }
 
     if (terminalStates.includes(execution.status as WorkflowExecutionStatus)) {
-      const outputs = execution.phases.map((phase, index) => {
+      const outputs = execution.phases.map((
+        phase: { outputs: string | null; name: string },
+        index: number,
+      ) => {
         let parsedOutput: Record<string, unknown> = {};
         try {
           parsedOutput = phase.outputs ? JSON.parse(phase.outputs) : {};
@@ -53,7 +56,7 @@ export async function waitForExecutionAndSummarize(
       const overall =
         `Run ${String(execution.status).toLowerCase()}. Credits consumed: ${execution.creditsConsumed}.`;
       const phases = outputs
-        .map((phase) =>
+        .map((phase: { phase: number; name: string; outputs: Record<string, unknown> }) =>
           `Phase ${phase.phase} - ${phase.name}: ${JSON.stringify(phase.outputs) || '{}'}`,
         )
         .join('\n');
