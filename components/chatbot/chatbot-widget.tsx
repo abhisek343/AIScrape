@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useHydrated } from "@/hooks/use-hydrated";
 
 interface Message {
   role: "user" | "assistant";
@@ -61,7 +62,7 @@ export function ChatbotWidget({ workflowId, getFlowState, onAutoLayout }: Chatbo
 }
 
 function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWidgetProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -73,11 +74,6 @@ function ChatbotInterface({ workflowId, getFlowState, onAutoLayout }: ChatbotWid
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { toast } = useToast();
-
-  // Prevent hydration mismatch by only rendering after mount
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Note: We intentionally don't use useReactFlow() here because:
   // 1. The component may be rendered outside of a valid ReactFlow context
