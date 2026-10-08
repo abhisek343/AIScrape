@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useId } from 'react';
 
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -9,12 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ParamProps } from '@/types/appnode';
 
 export default function StringParam({ param, value, updateNodeParamValue, disabled }: ParamProps) {
-  const [internalValue, setInternalValue] = useState(value || '');
   const id = useId();
-
-  useEffect(() => {
-    setInternalValue(value || '');
-  }, [value]);
 
   let Component: any = Input;
   if (param.variant === 'textarea') {
@@ -31,9 +26,9 @@ export default function StringParam({ param, value, updateNodeParamValue, disabl
         id={id}
         disabled={disabled}
         className="text-xs "
-        value={internalValue}
+        key={String(value ?? '')}
+        defaultValue={value || ''}
         placeholder="Enter value here"
-        onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setInternalValue(e.target.value)}
         onBlur={(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement, Element>) => updateNodeParamValue(e.target.value)}
       />
       {param.helperText && <p className="text-muted-foreground px-2">{param.helperText}</p>}
