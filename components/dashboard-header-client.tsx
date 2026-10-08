@@ -1,6 +1,6 @@
 "use client";
 
-import { SignedIn, UserButton } from '@clerk/nextjs';
+import { Show, UserButton } from '@clerk/nextjs';
 import { ModeToggle } from '@/components/thememode-toggle';
 import { useHydrated } from '@/hooks/use-hydrated';
 
@@ -11,9 +11,9 @@ export function DashboardHeaderClient() {
     <div className="gap-1 flex items-center">
       <ModeToggle />
       {isMounted && (
-        <SignedIn>
+        <Show when="signed-in">
           <UserButton />
-        </SignedIn>
+        </Show>
       )}
     </div>
   );
