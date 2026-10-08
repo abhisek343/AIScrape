@@ -7,7 +7,7 @@ import prisma from '@/lib/prisma';
 export default async function EditorPage({ params }: { params: Promise<{ workflowId: string }> }) {
   const { workflowId } = await params;
 
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     return <div>Unauthenticated</div>;
