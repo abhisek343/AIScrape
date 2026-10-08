@@ -33,7 +33,7 @@ export async function runWorkflow(params: RunWorkflowParams): Promise<WorkflowEx
     shouldRedirect = true,
     currentFlowDefinition,
   } = params;
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     throw new Error('Unauthenticated');
