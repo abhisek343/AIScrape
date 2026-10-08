@@ -6,7 +6,7 @@ import prisma from '@/lib/prisma';
 import { stripe } from '@/lib/stripe/stripe';
 
 export async function downloadInvoice(id: string) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     throw new Error('Unauthenticated');
